@@ -66,8 +66,7 @@ conflict = klock.acquire_lease("2fa-bot", "s2", "FILE", "/auth.ts", "MUTATES", 6
 
 ### Python
 ```bash
-cd klock-py
-pip install maturin && maturin develop --release
+pip install klock
 ```
 ```python
 from klock import KlockClient
@@ -78,10 +77,10 @@ result = klock.acquire_lease("my-agent", "s1", "FILE", "/app.ts", "MUTATES", 600
 
 ### JavaScript
 ```bash
-cd klock-js && pnpm install && pnpm run build
+npm install @klock-protocol/core
 ```
 ```javascript
-import { KlockClient } from './index.js';
+import { KlockClient } from '@klock-protocol/core';
 const klock = new KlockClient();
 klock.registerAgent('my-agent', 100);
 const result = JSON.parse(klock.acquireLease('my-agent', 's1', 'FILE', '/app.ts', 'MUTATES', 60000));
