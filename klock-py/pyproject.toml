@@ -1,0 +1,14 @@
+[build-system]
+requires = ["maturin>=1.0,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "klock"
+version = "0.1.0"
+description = "Native Rust-powered coordination kernel for multi-agent systems"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+keywords = ["klock", "coordination", "agents", "concurrency", "rust"]
+
+[tool.maturin]
+features = ["pyo3/extension-module"]

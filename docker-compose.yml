@@ -1,0 +1,15 @@
+services:
+  klock:
+    build: .
+    ports:
+      - "3100:3100"
+    environment:
+      RUST_LOG: info
+      KLOCK_API_KEY: ${KLOCK_API_KEY:-}
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:3100/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    restart: unless-stopped

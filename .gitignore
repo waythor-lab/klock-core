@@ -1,0 +1,55 @@
+# Dependencies
+node_modules
+.pnpm-store
+
+# Build outputs
+dist
+.next
+build
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS
+.DS_Store
+
+# IDE
+.vscode
+.idea
+*.swp
+
+# Environment
+.env
+.env*.local
+
+# Turbo
+.turbo
+.npm-cache
+
+# Experiment repos (isolated git repos for collision testing)
+experiments/collision-lab/
+
+# Rust / Cargo
+**/target/
+**/*.rs.bk
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+*.whl
+.venv/
+venv/
+
+# Build artifacts
+*.o
+*.so
+*.dylib
+*.dll
+*.node
+

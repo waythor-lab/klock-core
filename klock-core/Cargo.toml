@@ -1,0 +1,25 @@
+[package]
+name = "klock-core"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+nanoid = "0.4.0"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = { version = "1", optional = true }
+rusqlite = { version = "0.32", features = ["bundled"], optional = true }
+
+[features]
+default = []
+sqlite = ["dep:rusqlite", "dep:serde_json"]
+
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[[bench]]
+name = "conflict_bench"
+harness = false
+
+[[bench]]
+name = "throughput_bench"
+harness = false

@@ -1,0 +1,8 @@
+[workspace]
+members = [
+    "klock-core",
+    "klock-js",
+    "klock-py",
+    "klock-cli",
+]
+resolver = "2"
