@@ -2,8 +2,9 @@
 name = "klock-langchain"
 version = "0.1.0"
 description = "LangChain integration for Klock"
+readme = "README.md"
 authors = [
-    {name = "Mouad Nossair", email = "mouad@example.com"}
+    {name = "Mouad Nossair", email = "mouad@waythor.com"}
 ]
 dependencies = [
     "langchain-core>=0.1.0",
