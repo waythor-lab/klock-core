@@ -6,8 +6,15 @@ build-backend = "maturin"
 name = "klock"
 version = "0.1.0"
 description = "Native Rust-powered coordination kernel for multi-agent systems"
-requires-python = ">=3.8"
+readme = "README.md"
+authors = [
+    {name = "Mouad Nossair", email = "mouad@waythor.com"}
+    {name = "Walid Amar", email = "walid@waythor.com"}
+
+]
 license = {text = "MIT"}
+requires-python = ">=3.8"
+urls = {repository = "https://github.com/waythor-lab/klock-core"}
 keywords = ["klock", "coordination", "agents", "concurrency", "rust"]
 
 [tool.maturin]

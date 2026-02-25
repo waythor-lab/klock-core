@@ -4,7 +4,7 @@
 
 **The Concurrency Control Plane for the Agent Economy**
 
-[![CI](https://github.com/klock-protocol/klock/actions/workflows/ci.yml/badge.svg)](https://github.com/klock-protocol/klock/actions/workflows/ci.yml)
+[![CI](https://github.com/waythor-lab/klock/actions/workflows/ci.yml/badge.svg)](https://github.com/waythor-lab/klock/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Rust](https://img.shields.io/badge/rust-1.75+-orange.svg)](https://www.rust-lang.org)
 

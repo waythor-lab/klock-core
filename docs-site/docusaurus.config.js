@@ -31,7 +31,7 @@ const config = {
       ({
         docs: {
           sidebarPath: './sidebars.js',
-          editUrl: 'https://github.com/klock-protocol/klock/tree/main/Klock-OpenSource/docs-site/',
+          editUrl: 'https://github.com/waythor-lab/klock/tree/main/Klock-OpenSource/docs-site/',
         },
         blog: false, // Disable blog for now
         theme: {
@@ -63,12 +63,12 @@ const config = {
             position: 'right',
           },
           {
-            href: 'https://pypi.org/project/klock-core/',
+            href: 'https://pypi.org/project/klock/',
             label: 'PyPI',
             position: 'right',
           },
           {
-            href: 'https://github.com/klock-protocol/klock',
+            href: 'https://github.com/waythor-lab/klock',
             label: 'GitHub',
             position: 'right',
           },
@@ -96,7 +96,7 @@ const config = {
             title: 'More',
             items: [
               { label: 'Benchmarks', to: '/docs/benchmarks' },
-              { label: 'GitHub', href: 'https://github.com/klock-protocol/klock' },
+              { label: 'GitHub', href: 'https://github.com/waythor-lab/klock' },
             ],
           },
         ],
