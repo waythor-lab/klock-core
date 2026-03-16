@@ -1,6 +1,12 @@
 <div align="center">
 
-# 🔒 Klock
+<img src="docs/assets/logo.svg" alt="Klock Logo" width="120" />
+<br />
+<img src="docs/assets/logo-text.svg" alt="Klock Logo Text" width="180" />
+
+---
+
+# Klock
 
 **The Concurrency Control Plane for the Agent Economy**
 
