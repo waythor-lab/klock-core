@@ -27,8 +27,8 @@ pip install klock
 ```python
 from klock import KlockClient
 
-# 1. Connect to your Klock daemon
-client = KlockClient("http://localhost:3100")
+# 1. Start an embedded Klock client
+client = KlockClient()
 
 # 2. Register an agent with a priority (lower = senior)
 client.register_agent("refactor-bot", 100)
@@ -50,6 +50,8 @@ if result["success"]:
 else:
     print(f"Conflict: {result['reason']}")
 ```
+
+If you need a centralized coordinator, run `klock-cli` separately and talk to its HTTP API. The current Python package exposes the embedded client surface.
 
 ## License
 

@@ -3,9 +3,39 @@
 [![PyPI version](https://badge.fury.io/py/klock-langchain.svg)](https://badge.fury.io/py/klock-langchain)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Official LangChain integration for **Klock**, the coordination infrastructure that prevents Multi-Agent Race Conditions (MARC).
+LangChain adapter for **Klock**, the coordination infrastructure that prevents Multi-Agent Race Conditions (MARC).
 
 This package provides the `@klock_protected` decorator, allowing you to wrap any LangChain `BaseTool` with Klock's Wait-Die concurrency control. This ensures that when multiple autonomous agents try to modify the same resource simultaneously, they do not corrupt your data or cause silent data loss.
+
+## Tiny Repro First
+
+If you want to see the failure mode before touching LangChain, start with the smallest repro in the repo:
+
+- [tiny_repro/race_condition.py](../../examples/tiny_repro/race_condition.py) — 2 workers, 1 file, deterministic silent overwrite
+- [tiny_repro/klock_fixed.py](../../examples/tiny_repro/klock_fixed.py) — same workflow protected by Klock
+
+From `Klock-OpenSource/examples/tiny_repro/`:
+
+```bash
+python3 race_condition.py
+```
+
+Then start the local Klock server from `Klock-OpenSource/`:
+
+```bash
+cargo run --release -p klock-cli -- serve
+```
+
+And in `examples/tiny_repro/` run:
+
+```bash
+python3 klock_fixed.py
+```
+
+The expected outcome is intentionally simple:
+
+- without coordination: final state has **1** entry instead of **2**
+- with Klock: final state has **2** entries
 
 ## Installation
 
@@ -22,8 +52,9 @@ from langchain_core.tools import BaseTool
 from klock import KlockClient
 from klock_langchain import klock_protected
 
-# Initialize your Klock kernel client
-klock_client = KlockClient("http://localhost:8080")
+# Initialize a local Klock client and register this worker's priority
+klock_client = KlockClient()
+klock_client.register_agent("refactor-agent-1", 100)
 
 # Define a tool and protect it with Klock
 class WriteFileTool(BaseTool):
@@ -52,6 +83,16 @@ Klock uses **Wait-Die priority scheduling**, a classic database concurrency cont
 - **Younger agents** abort immediately to prevent deadlocks (Die).
 
 If a "Die" abort occurs, `klock_protected` raises a `RuntimeError`. LangChain's built-in error handling catches this and returns it to the LLM agent, allowing the agent to gracefully pause and retry the operation later.
+
+This package is the current shipping integration surface. LangGraph and CrewAI can already use it at the tool layer even before dedicated adapters exist.
+
+## Bigger Demos
+
+After the tiny repro, the next assets are:
+
+- `examples/openrouter_langchain/demo.py` for a simple LangChain + Klock flow
+- `integrations/klock-langchain/real_agents_demo.py` for the larger crash-test style demonstration
+- `examples/openrouter_langchain/demo_scale.py` for the multi-agent benchmark path
 
 ## License
 
