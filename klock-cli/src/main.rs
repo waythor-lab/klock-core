@@ -1,5 +1,5 @@
-mod server;
 mod handlers;
+mod server;
 
 use clap::{Parser, Subcommand};
 
@@ -45,7 +45,11 @@ async fn main() {
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::Serve { port, host, storage } => {
+        Commands::Serve {
+            port,
+            host,
+            storage,
+        } => {
             server::run(&host, port, &storage).await;
         }
         Commands::Check => {

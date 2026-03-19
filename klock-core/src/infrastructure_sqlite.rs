@@ -6,7 +6,7 @@
 //! klock-core = { path = "../klock-core", features = ["sqlite"] }
 //! ```
 
-use rusqlite::{params, Connection};
+use rusqlite::{Connection, params};
 use std::collections::HashMap;
 
 use crate::infrastructure::LeaseStore;

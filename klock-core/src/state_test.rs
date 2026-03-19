@@ -54,7 +54,11 @@ mod tests {
         priorities.insert("agent_younger".to_string(), 200);
 
         let state = StateSnapshot {
-            active_leases: vec![create_lease("agent_older", Predicate::Mutates, "/src/app.ts")],
+            active_leases: vec![create_lease(
+                "agent_older",
+                Predicate::Mutates,
+                "/src/app.ts",
+            )],
             active_intents: vec![],
             priorities,
         };

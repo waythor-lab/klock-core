@@ -160,10 +160,10 @@ def main():
     print(f"Actual entries:   {len(final_state)}")
 
     if len(final_state) == 2:
-        print("\nSAFE SERIALIZATION CONFIRMED")
+        print("\nWAIT-DIE COORDINATION CONFIRMED")
         print("Klock prevented the silent overwrite.")
     else:
-        print("\nUnexpected result: Klock should serialize both writes.")
+        print("\nUnexpected result: Klock should coordinate both writes.")
 
 
 if __name__ == "__main__":

@@ -25,8 +25,7 @@ pub trait LeaseStore {
 
     /// Get all currently active leases
     fn get_active_leases(&self) -> Vec<Lease>;
-    
+
     /// Evict expired leases based on the current time
     fn evict_expired(&mut self, now: u64) -> usize;
 }
-

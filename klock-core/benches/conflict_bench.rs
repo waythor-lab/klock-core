@@ -1,4 +1,4 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId};
+use criterion::{BenchmarkId, Criterion, black_box, criterion_group, criterion_main};
 
 use klock_core::conflict::ConflictEngine;
 use klock_core::scheduler::WaitDieScheduler;
@@ -38,10 +38,7 @@ fn make_lease(agent: &str, pred: Predicate, path: &str) -> Lease {
 fn bench_check_pair(c: &mut Criterion) {
     c.bench_function("conflict_check_pair", |b| {
         b.iter(|| {
-            ConflictEngine::check_pair(
-                black_box(Predicate::Mutates),
-                black_box(Predicate::Mutates),
-            )
+            ConflictEngine::check_pair(black_box(Predicate::Mutates), black_box(Predicate::Mutates))
         })
     });
 }
@@ -51,7 +48,14 @@ fn bench_check_with_varying_triples(c: &mut Criterion) {
 
     for count in [10, 100, 1000] {
         let existing: Vec<SPOTriple> = (0..count)
-            .map(|i| make_triple(&format!("agent_{}", i), Predicate::Consumes, &format!("/file_{}.ts", i), "s1"))
+            .map(|i| {
+                make_triple(
+                    &format!("agent_{}", i),
+                    Predicate::Consumes,
+                    &format!("/file_{}.ts", i),
+                    "s1",
+                )
+            })
             .collect();
 
         let new = make_triple("agent_new", Predicate::Mutates, "/file_0.ts", "s2");

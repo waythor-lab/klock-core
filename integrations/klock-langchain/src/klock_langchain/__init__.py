@@ -1,3 +1,3 @@
-from .tool import klock_protected
+from .tool import KlockConflictError, klock_protected
 
-__all__ = ["klock_protected"]
+__all__ = ["KlockConflictError", "klock_protected"]

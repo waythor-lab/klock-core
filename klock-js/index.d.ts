@@ -19,3 +19,44 @@ export declare class KlockClient {
   /** Evict expired leases. Returns number evicted. */
   evictExpired(): number
 }
+
+export interface KlockHttpClientOptions {
+  baseUrl?: string
+  apiKey?: string
+  timeoutMs?: number
+  autoStart?: boolean
+  startupTimeoutMs?: number
+  serverCommand?: string[]
+}
+
+export interface HttpLeaseResult {
+  success: boolean
+  leaseId?: string
+  agentId?: string
+  resource?: string
+  predicate?: string
+  expiresAt?: number
+  reason?: string
+  waitTime?: number
+}
+
+export interface ActiveLeaseInfo {
+  id: string
+  agentId: string
+  resource: string
+  predicate: string
+  expiresAt: number
+}
+
+export declare class KlockHttpClient {
+  constructor(options?: KlockHttpClientOptions)
+  autoStart: boolean
+  autoStartDisabledByEnv: boolean
+  autoStartAttempted: boolean
+  autoStartedPid: number | null
+  registerAgent(agentId: string, priority: number): Promise<void>
+  acquireLease(agentId: string, sessionId: string, resourceType: string, resourcePath: string, predicate: string, ttl: number): Promise<HttpLeaseResult>
+  releaseLease(leaseId: string): Promise<boolean>
+  heartbeatLease(leaseId: string): Promise<boolean>
+  listLeases(): Promise<ActiveLeaseInfo[]>
+}

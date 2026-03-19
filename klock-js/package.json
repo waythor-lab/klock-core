@@ -1,9 +1,20 @@
 {
     "name": "@klock-protocol/core",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "description": "Native Rust-powered coordination kernel for multi-agent systems. Prevents AI agent race conditions.",
     "main": "index.js",
+    "exports": {
+        ".": "./index.js"
+    },
     "types": "index.d.ts",
+    "files": [
+        "index.js",
+        "index.d.ts",
+        "*.node"
+    ],
+    "publishConfig": {
+        "access": "public"
+    },
     "napi": {
         "name": "klock-core",
         "triples": {
@@ -14,6 +25,9 @@
         "build": "napi build --platform --release",
         "build:debug": "napi build --platform",
         "test": "node __test__/index.test.mjs"
+    },
+    "engines": {
+        "node": ">=18"
     },
     "devDependencies": {
         "@napi-rs/cli": "^2.18.0"
@@ -29,6 +43,6 @@
     ],
     "repository": {
         "type": "git",
-        "url": "https://github.com/waythor-lab/klock"
+        "url": "git+https://github.com/waythor-lab/klock.git"
     }
 }

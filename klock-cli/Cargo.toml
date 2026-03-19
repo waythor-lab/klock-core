@@ -1,9 +1,11 @@
 [package]
 name = "klock-cli"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
-description = "CLI and HTTP server for the Klock coordination protocol"
-
+description = "CLI and local coordination server for Klock OSS v1"
+license = "MIT"
+repository = "https://github.com/waythor-lab/klock"
+homepage = "https://klockcore.com"
 [[bin]]
 name = "klock"
 path = "src/main.rs"

@@ -3,11 +3,20 @@ use serde::{Deserialize, Serialize};
 // ─── Validation Constants ───────────────────────────────────────────────────
 
 const VALID_PREDICATES: &[&str] = &[
-    "PROVIDES", "CONSUMES", "MUTATES", "DELETES", "DEPENDS_ON", "RENAMES",
+    "PROVIDES",
+    "CONSUMES",
+    "MUTATES",
+    "DELETES",
+    "DEPENDS_ON",
+    "RENAMES",
 ];
 
 const VALID_RESOURCE_TYPES: &[&str] = &[
-    "FILE", "SYMBOL", "API_ENDPOINT", "DATABASE_TABLE", "CONFIG_KEY",
+    "FILE",
+    "SYMBOL",
+    "API_ENDPOINT",
+    "DATABASE_TABLE",
+    "CONFIG_KEY",
 ];
 
 // ─── Validation Helpers ─────────────────────────────────────────────────────
@@ -98,8 +107,7 @@ impl DeclareIntentRequest {
             return Err("intents must not be empty".to_string());
         }
         for (i, intent) in self.intents.iter().enumerate() {
-            validate_predicate(&intent.predicate)
-                .map_err(|e| format!("intents[{}]: {}", i, e))?;
+            validate_predicate(&intent.predicate).map_err(|e| format!("intents[{}]: {}", i, e))?;
             validate_resource_type(&intent.resource_type)
                 .map_err(|e| format!("intents[{}]: {}", i, e))?;
         }

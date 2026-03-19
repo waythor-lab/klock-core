@@ -12,7 +12,14 @@ mod tests {
         let res = ResourceRef::new(ResourceType::File, "/test");
 
         // Acquire
-        let result = store.acquire("agent_1", "session_1", res.clone(), Predicate::Mutates, 5000, 1000);
+        let result = store.acquire(
+            "agent_1",
+            "session_1",
+            res.clone(),
+            Predicate::Mutates,
+            5000,
+            1000,
+        );
         let lease = match result {
             LeaseResult::Success { lease } => lease,
             _ => panic!("Expected Success"),
@@ -43,27 +50,30 @@ mod tests {
         let result = store.acquire("younger", "s2", res.clone(), Predicate::Mutates, 5000, 1000);
         assert!(matches!(
             result,
-            LeaseResult::Failure { reason: LeaseFailureReason::Die, .. }
+            LeaseResult::Failure {
+                reason: LeaseFailureReason::Die,
+                ..
+            }
         ));
     }
 
     #[test]
     fn test_in_memory_store_eviction() {
-         let mut store = InMemoryLeaseStore::new();
-         store.register_agent_priority("agent_1".to_string(), 100);
-         let res = ResourceRef::new(ResourceType::File, "/test");
+        let mut store = InMemoryLeaseStore::new();
+        store.register_agent_priority("agent_1".to_string(), 100);
+        let res = ResourceRef::new(ResourceType::File, "/test");
 
-         // Acquire at t=1000, ttl=5000 -> expires at 6000
-         let _ = store.acquire("agent_1", "session_1", res, Predicate::Provides, 5000, 1000);
-         
-         assert_eq!(store.get_active_leases().len(), 1);
+        // Acquire at t=1000, ttl=5000 -> expires at 6000
+        let _ = store.acquire("agent_1", "session_1", res, Predicate::Provides, 5000, 1000);
 
-         // Evict at t=5000 (not expired yet)
-         assert_eq!(store.evict_expired(5000), 0);
-         assert_eq!(store.get_active_leases().len(), 1);
+        assert_eq!(store.get_active_leases().len(), 1);
 
-         // Evict at t=7000 (expired!)
-         assert_eq!(store.evict_expired(7000), 1);
-         assert_eq!(store.get_active_leases().len(), 0);
+        // Evict at t=5000 (not expired yet)
+        assert_eq!(store.evict_expired(5000), 0);
+        assert_eq!(store.get_active_leases().len(), 1);
+
+        // Evict at t=7000 (expired!)
+        assert_eq!(store.evict_expired(7000), 1);
+        assert_eq!(store.get_active_leases().len(), 0);
     }
 }

@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import patch
 
-from klock_langchain import klock_protected
+from klock_langchain import KlockConflictError, klock_protected
 
 
 class FakeKlockClient:
@@ -74,7 +74,7 @@ class KlockProtectedTests(unittest.TestCase):
         sleep_mock.assert_called_once_with(0.25)
         self.assertEqual(client.release_calls, ["lease-2"])
 
-    def test_die_raises_runtime_error(self):
+    def test_die_raises_conflict_error(self):
         client = FakeKlockClient([{"success": False, "reason": "DIE", "wait_time": 1000}])
 
         @klock_protected(
@@ -87,9 +87,10 @@ class KlockProtectedTests(unittest.TestCase):
         def write_file(path):
             return path
 
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(KlockConflictError) as exc_info:
             write_file(path="/tmp/auth.ts")
 
+        self.assertEqual(exc_info.exception.reason, "DIE")
         self.assertEqual(client.release_calls, [])
 
     def test_release_runs_even_if_wrapped_function_fails(self):
@@ -109,6 +110,22 @@ class KlockProtectedTests(unittest.TestCase):
             write_file(path="/tmp/auth.ts")
 
         self.assertEqual(client.release_calls, ["lease-3"])
+
+    def test_missing_resource_path_raises_value_error(self):
+        client = FakeKlockClient([{"success": True, "lease_id": "lease-4"}])
+
+        @klock_protected(
+            klock_client=client,
+            agent_id="agent-1",
+            session_id="session-1",
+            resource_type="FILE",
+            resource_path_extractor=lambda kwargs: kwargs.get("missing"),
+        )
+        def write_file(path):
+            return path
+
+        with self.assertRaises(ValueError):
+            write_file(path="/tmp/auth.ts")
 
 
 if __name__ == "__main__":

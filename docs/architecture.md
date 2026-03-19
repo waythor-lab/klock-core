@@ -7,7 +7,7 @@ Klock's architecture follows a **pure kernel + infrastructure** separation where
 1. **Pure Kernel**: The conflict engine, scheduler, and state machine have zero I/O — they are pure functions over data
 2. **O(1) Conflict Detection**: A precomputed 6×6 compatibility matrix makes conflict checks constant-time
 3. **Deadlock Freedom**: Wait-Die scheduling guarantees no circular waits can form
-4. **Untrusted Agent Model**: Correctness is enforced, not requested — agents cannot bypass the kernel
+4. **Kernel-Centered Correctness**: Within the kernel, correctness is enforced rather than requested. In OSS v1, agents still need to call Klock before mutating shared resources.
 
 ---
 

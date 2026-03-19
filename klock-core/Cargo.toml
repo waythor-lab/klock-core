@@ -1,7 +1,11 @@
 [package]
 name = "klock-core"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
+description = "Rust coordination kernel for multi-agent shared-resource scheduling"
+license = "MIT"
+repository = "https://github.com/waythor-lab/klock"
+homepage = "https://klockcore.com"
 
 [dependencies]
 nanoid = "0.4.0"

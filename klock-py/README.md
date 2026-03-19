@@ -1,58 +1,36 @@
 # klock
 
-[![PyPi version](https://badge.fury.io/py/klock.svg)](https://pypi.org/project/klock/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+Python SDK for Klock OSS v1.
 
-**The Coordination Kernel for the Agent Economy.**
+The package now exposes two entrypoints:
 
-`klock` is a high-performance, Rust-powered distributed coordination engine designed specifically to solve the **Multi-Agent Race Condition (MARC)**. 
+- `KlockClient` for embedded local coordination
+- `KlockHttpClient` for talking to `klock-cli serve`
 
-When multiple autonomous AI agents (like Claude Code, SWE-agent, or custom swarms) edit a shared codebase or resource simultaneously, they often overwrite each other's work without warning. `klock` prevents this by treating resource access as a first-class scheduled event using the **Wait-Die** protocol.
-
-## Features
-
-- **Deadlock Immunity**: Uses timestamp-ordered priority scheduling (Wait-Die) to ensure global progress without cycles.
-- **High Performance**: Core engine written in Rust for sub-millisecond lock acquisition.
-- **Agent Awareness**: Designed for autonomous systems that can "Retry" or "Die" based on priority.
-- **Distributed Ready**: Works with the Klock CLI server to coordinate agents across different servers or containers.
-
-## Installation
+## Install
 
 ```bash
 pip install klock
 ```
 
-## Quick Start
+## Embedded client
 
 ```python
 from klock import KlockClient
 
-# 1. Start an embedded Klock client
-client = KlockClient()
-
-# 2. Register an agent with a priority (lower = senior)
-client.register_agent("refactor-bot", 100)
-
-# 3. Acquire a lease for a resource
-result = client.acquire_lease(
-    agent_id="refactor-bot",
-    session_id="session-456",
-    resource_type="FILE",
-    resource_path="src/main.py",
-    predicate="MUTATES",
-    ttl=60000
-)
-
-if result["success"]:
-    print(f"Lease acquired: {result['lease_id']}")
-    # Do work...
-    client.release_lease(result["lease_id"])
-else:
-    print(f"Conflict: {result['reason']}")
+klock = KlockClient()
+klock.register_agent("agent-a", 100)
+result = klock.acquire_lease("agent-a", "session-a", "FILE", "/src/auth.js", "MUTATES", 5000)
 ```
 
-If you need a centralized coordinator, run `klock-cli` separately and talk to its HTTP API. The current Python package exposes the embedded client surface.
+## HTTP client
 
-## License
+```python
+from klock import KlockHttpClient
 
-MIT
+klock = KlockHttpClient("http://localhost:3100")
+klock.register_agent("agent-a", 100)
+result = klock.acquire_lease("agent-a", "session-a", "FILE", "/src/auth.js", "MUTATES", 5000)
+```
+
+Use `KlockHttpClient` for the OSS v1 local repo/workspace coordination workflow.

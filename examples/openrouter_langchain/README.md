@@ -1,14 +1,16 @@
 # Klock OpenRouter LangChain Demo
 
-This directory contains three demonstration scripts that showcase Klock's ability to prevent race conditions and deadlocks in multi-agent environments using LangChain and OpenRouter.
+This directory contains three demonstration scripts that showcase Klock's Wait-Die coordination behavior in multi-agent environments using LangChain and OpenRouter.
 
 ## Setup
 
-1. **Start the Klock Server** (Required):
+1. **Local Klock Server**:
+   `KlockHttpClient("http://localhost:3100")` now auto-starts the local server when it can find a launch command. You can still start it manually if you want:
    ```bash
    # From the repository root
    cargo run --release -p klock-cli -- serve
    ```
+   When auto-start happens, the SDK logs the base URL, launch command, and PID. Disable it with `KLOCK_DISABLE_AUTOSTART=1`.
 
 2. **Install Dependencies**:
    ```bash
@@ -28,4 +30,4 @@ This directory contains three demonstration scripts that showcase Klock's abilit
 - **`compare_algorithms.py`**: A mathematical comparison of Wait-Die vs other concurrency models.
 
 ## Why Klock?
-Without Klock, autonomous agents writing to the same files will cause **silent data loss**. Standard locks often cause **deadlocks** where agents freeze forever. Klock's **Wait-Die** algorithm ensures data integrity without freezing your agents.
+Without Klock, autonomous agents writing to the same files will cause **silent data loss**. Standard locks often cause **deadlocks** where agents freeze forever. Klock's **Wait-Die** algorithm coordinates cooperative agents through `GRANT`, `WAIT`, and `DIE` outcomes without freezing the whole workflow.

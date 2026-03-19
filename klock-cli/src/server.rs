@@ -54,9 +54,7 @@ pub async fn run(host: &str, port: u16, storage: &str) {
         .await
         .expect("Failed to bind");
 
-    axum::serve(listener, app)
-        .await
-        .expect("Server error");
+    axum::serve(listener, app).await.expect("Server error");
 }
 
 // ─── Auth Middleware ────────────────────────────────────────────────────────
@@ -120,7 +118,10 @@ async fn register_agent(
     tracing::info!(agent_id = %req.agent_id, priority = req.priority, "Agent registered");
     (
         StatusCode::CREATED,
-        Json(ApiResponse::ok(format!("Agent '{}' registered with priority {}", req.agent_id, req.priority))),
+        Json(ApiResponse::ok(format!(
+            "Agent '{}' registered with priority {}",
+            req.agent_id, req.priority
+        ))),
     )
 }
 
@@ -171,7 +172,9 @@ async fn acquire_lease(
                 })),
             )
         }
-        LeaseResult::Failure { reason, wait_time, .. } => {
+        LeaseResult::Failure {
+            reason, wait_time, ..
+        } => {
             let reason_str = match reason {
                 LeaseFailureReason::Wait => "WAIT",
                 LeaseFailureReason::Die => "DIE",
@@ -205,7 +208,10 @@ async fn release_lease(
         tracing::info!(lease_id = %id, "Lease released");
         Json(ApiResponse::ok(format!("Lease '{}' released", id)))
     } else {
-        Json(ApiResponse::<String>::err(format!("Lease '{}' not found", id)))
+        Json(ApiResponse::<String>::err(format!(
+            "Lease '{}' not found",
+            id
+        )))
     }
 }
 
@@ -231,7 +237,10 @@ async fn heartbeat_lease(
     } else {
         (
             StatusCode::NOT_FOUND,
-            Json(ApiResponse::err(format!("Lease '{}' not found or expired", id))),
+            Json(ApiResponse::err(format!(
+                "Lease '{}' not found or expired",
+                id
+            ))),
         )
     }
 }
@@ -354,7 +363,8 @@ fn create_client(storage: &str) -> KlockClient {
         }
     } else {
         tracing::error!(
-            "Unknown storage backend: '{}'. Use 'memory' or 'sqlite:<path>'", storage
+            "Unknown storage backend: '{}'. Use 'memory' or 'sqlite:<path>'",
+            storage
         );
         tracing::warn!("Falling back to in-memory storage.");
         KlockClient::new()

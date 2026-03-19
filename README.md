@@ -4,216 +4,147 @@
 <br />
 <img src="docs/assets/logo-text.svg" alt="Klock Logo Text" width="180" />
 
----
+# Klock OSS v1
 
-# Klock
+Coordinate AI coding agents before they overwrite each other in the same repo.
 
-**The Concurrency Control Plane for the Agent Economy**
-
-[![CI](https://github.com/waythor-lab/klock/actions/workflows/ci.yml/badge.svg)](https://github.com/waythor-lab/klock/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![Rust](https://img.shields.io/badge/rust-1.75+-orange.svg)](https://www.rust-lang.org)
-
-*Prevent the **Multi-Agent Race Condition (MARC)** — the silent data loss when autonomous AI agents simultaneously modify shared resources without coordination.*
-
-[Getting Started](docs/getting-started.md) · [Architecture](docs/architecture.md) · [API Reference](docs/api-reference.md) · [Benchmarks](docs/benchmarks.md)
+[Getting Started](docs/getting-started.md) · [LangChain](integrations/klock-langchain/README.md) · [Examples](docs/examples.md) · [Benchmarks](docs/benchmarks.md)
 
 </div>
 
----
+## What ships in OSS v1
 
-## The Problem
+- `klock-core`: Rust coordination engine with Wait-Die scheduling
+- `klock-py`: embedded and HTTP-backed Python client
+- `klock-js`: embedded and HTTP-backed JavaScript client
+- `klock-langchain`: canonical integration for cooperative file-mutating tools
+- `klock-cli`: local coordination server for shared repo/workspace access
+- deterministic proof demos that show silent overwrite without Klock and a conflict-managed Wait-Die outcome with Klock
 
-When multiple AI agents operate on the same codebase, they create **race conditions**:
+## The product in one sentence
 
+Multiple coding agents can target the same repo. Klock makes cooperative agents acquire leases before mutating shared files, so conflicting edits become visible `GRANT`, `WAIT`, and `DIE` decisions instead of silent lost work.
+
+OSS v1 is coordination for compliant actors. It is not yet a filesystem-enforced layer.
+
+## Quick Proof
+
+Install the Python packages:
+
+```bash
+pip install klock klock-langchain
 ```
-Agent A: reads auth.ts → refactors login() → writes auth.ts
-Agent B: reads auth.ts → adds 2FA to login() → writes auth.ts
-                                                  ↑
-                                          Agent A's changes: GONE
+
+Reproduce the failure:
+
+```bash
+cd examples/oss_v1
+python3 without_klock.py
 ```
 
-No crash. No error. The refactoring just silently vanishes. This is **MARC**.
+Run the full proof:
 
-## The Solution
+```bash
+./scripts/run_oss_v1_demo.sh
+```
 
-Klock provides a **coordination kernel** that detects conflicts *before* they happen:
+Expected outcome:
+
+- `without_klock.py`: both agents succeed, one feature vanishes
+- `with_klock.py`: both features survive
+- `wait_die_trace.py`: explicit `GRANT`, `WAIT`, and `DIE` output on the same file
+- localhost clients auto-start the local `klock` server when the binary or source-tree command is available
+- auto-start logs the base URL and PID, and you can disable it with `KLOCK_DISABLE_AUTOSTART=1`
+
+One-command version:
+
+```bash
+./scripts/run_oss_v1_demo.sh
+```
+
+## Canonical LangChain example
 
 ```python
-from klock import KlockClient
+from klock import KlockHttpClient
+from klock_langchain import klock_protected
+from langchain_core.tools import BaseTool
 
-klock = KlockClient()
-klock.register_agent("refactor-bot", 100)  # Senior
-klock.register_agent("2fa-bot", 200)       # Junior
+klock = KlockHttpClient(base_url="http://localhost:3100")
+klock.register_agent("refactor-bot", 100)
 
-# Senior acquires a lease
-result = klock.acquire_lease("refactor-bot", "s1", "FILE", "/auth.ts", "MUTATES", 60000)
-# ✅ {'success': True, 'lease_id': '...'}
+class WriteFileTool(BaseTool):
+    name = "write_file"
+    description = "Mutates a repo file after acquiring a Klock lease."
 
-# Junior tries the same file → blocked
-conflict = klock.acquire_lease("2fa-bot", "s2", "FILE", "/auth.ts", "MUTATES", 60000)
-# 🚫 {'success': False, 'reason': 'DIE', 'wait_time': 1000}
+    @klock_protected(
+        klock_client=klock,
+        agent_id="refactor-bot",
+        session_id="repo-run-001",
+        resource_type="FILE",
+        resource_path_extractor=lambda kwargs: kwargs["path"],
+        predicate="MUTATES",
+    )
+    def _run(self, path: str, content: str) -> str:
+        with open(path, "w", encoding="utf-8") as handle:
+            handle.write(content)
+        return f"updated {path}"
 ```
 
-## Key Features
+Why this is the v1 path:
 
-| Feature | Description |
-|---------|-------------|
-| ⚡ **O(1) Conflict Detection** | 6×6 predicate compatibility matrix — constant time regardless of active intents |
-| 🛡️ **Deadlock-Free Scheduling** | Wait-Die protocol guarantees no circular waits |
-| 🦀 **Rust Core** | Sub-nanosecond operations, zero GC, compiled to native bindings |
-| 🐍 **Python SDK** | `from klock import KlockClient` via PyO3 |
-| 📦 **JavaScript SDK** | `import { KlockClient } from '@klock-protocol/core'` via napi-rs |
-| 🌐 **REST API** | `klock serve` — language-agnostic HTTP server |
-| 💾 **Pluggable Storage** | In-memory (dev) or SQLite (persistent) backends |
-| 🐳 **Docker Ready** | `docker compose up` — single command deployment |
+- it works with the local Klock server today
+- it coordinates real file-mutating tools
+- it maps directly to the repo coordination proof scripts
+- it gives users one integration to learn first
 
-## Quick Start
+## SDK surface
 
 ### Python
+
 ```bash
 pip install klock
 ```
+
 ```python
-from klock import KlockClient
-klock = KlockClient()
-klock.register_agent("my-agent", 100)
-result = klock.acquire_lease("my-agent", "s1", "FILE", "/app.ts", "MUTATES", 60000)
+from klock import KlockClient, KlockHttpClient
+
+embedded = KlockClient()
+remote = KlockHttpClient("http://localhost:3100")
 ```
 
 ### JavaScript
+
 ```bash
 npm install @klock-protocol/core
 ```
+
 ```javascript
-import { KlockClient } from '@klock-protocol/core';
-const klock = new KlockClient();
-klock.registerAgent('my-agent', 100);
-const result = JSON.parse(klock.acquireLease('my-agent', 's1', 'FILE', '/app.ts', 'MUTATES', 60000));
+const { KlockClient, KlockHttpClient } = require('@klock-protocol/core');
+
+const embedded = new KlockClient();
+const remote = new KlockHttpClient({ baseUrl: 'http://localhost:3100' });
 ```
 
-### HTTP Server
-```bash
-cargo build --release -p klock-cli
-./target/release/klock serve --port 3100
-```
-```bash
-# Register agent
-curl -X POST http://localhost:3100/agents \
-  -H 'Content-Type: application/json' \
-  -d '{"agent_id": "bot-1", "priority": 100}'
+## Local repo workflow
 
-# Acquire lease
-curl -X POST http://localhost:3100/leases \
-  -H 'Content-Type: application/json' \
-  -d '{"agent_id":"bot-1","session_id":"s1","resource_type":"FILE","resource_path":"/app.ts","predicate":"MUTATES","ttl":60000}'
-```
-
-### Docker
-```bash
-docker compose up -d
-curl http://localhost:3100/health
-```
-
-## Architecture
-
-```
-┌────────────────────────────────────────────────────┐
-│                  Klock Kernel (Rust)                │
-│                                                    │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────┐ │
-│  │   Conflict    │  │  Wait-Die    │  │  Lease   │ │
-│  │   Engine      │→│  Scheduler   │→│  Store   │ │
-│  │   O(1) matrix │  │  deadlock    │  │  memory  │ │
-│  │              │  │  prevention  │  │  sqlite  │ │
-│  └──────────────┘  └──────────────┘  └──────────┘ │
-└──────────┬─────────────────┬──────────────┬────────┘
-           │                 │              │
-    ┌──────┴──────┐   ┌──────┴──────┐  ┌───┴────┐
-    │  Python SDK │   │   JS SDK    │  │  HTTP  │
-    │  (PyO3)     │   │  (napi-rs)  │  │ Server │
-    └─────────────┘   └─────────────┘  └────────┘
-```
-
-## Performance
-
-All benchmarks measured on Apple Silicon in release mode:
-
-| Operation | Latency | Complexity |
-|-----------|---------|------------|
-| Conflict check (single pair) | **~1 ns** | O(1) |
-| Conflict check (1000 triples) | **~339 ns** | O(1) ✓ |
-| Wait-Die decision | **~25 ns** | O(n) leases |
-| Full kernel execute | **~500 ns** | O(1) |
-| Lease acquire + release | **~670 ns** | O(n) leases |
-
-> **O(1) conflict detection confirmed**: 10, 100, and 1000 active triples all resolve in ~337ns.
-
-See [benchmarks.md](docs/benchmarks.md) for full details.
-
-## Project Structure
-
-```
-Klock-OpenSource/
-├── klock-core/          # Rust coordination kernel
-│   ├── src/conflict.rs  # 6×6 compatibility matrix
-│   ├── src/scheduler.rs # Wait-Die deadlock prevention
-│   ├── src/client.rs    # High-level API
-│   └── src/infrastructure_sqlite.rs  # Persistent storage
-├── klock-js/            # Node.js native bindings (napi-rs)
-├── klock-py/            # Python native bindings (PyO3)
-├── klock-cli/           # CLI + Axum HTTP server
-├── docs/                # Documentation
-├── docs-site/           # Docusaurus documentation site
-├── Dockerfile           # Multi-stage container build
-└── docker-compose.yml   # One-command deployment
-```
-
-## Server Configuration
-
-| Flag | Default | Env Var | Description |
-|------|---------|---------|-------------|
-| `--port` | `3100` | — | HTTP port |
-| `--host` | `0.0.0.0` | — | Bind address |
-| `--storage` | `memory` | `KLOCK_STORAGE` | `memory` or `sqlite:<path>` |
-| — | — | `KLOCK_API_KEY` | API key for authentication (optional) |
-
-```bash
-# Persistent storage with auth
-KLOCK_API_KEY=my-secret-key klock serve --storage sqlite:./klock.db
-```
-
-## The Klock Protocol (KLIS)
-
-Klock implements the **KLIS** (Klock Intent Serialization) protocol:
-
-- **KLIS-0**: SPO Triple Model — every intent is (Subject, Predicate, Object)
-- **KLIS-2**: 6×6 Conflict Matrix — O(1) compatibility lookup
-- **KLIS-3**: Wait-Die Protocol — deadlock-free priority scheduling
-- **KLIS-4**: Lease Lifecycle — Active → Released/Expired/Revoked
-
-See [protocol-spec.md](docs/protocol-spec.md) for the full specification.
+1. Let `KlockHttpClient` auto-start `klock-cli serve`, or start it manually.
+2. Register each agent with an explicit priority.
+3. Wrap every file-mutating tool with `klock_protected(...)` or call the SDK directly.
+4. Acquire a lease before reading and writing the target file.
+5. Release the lease when the mutation is complete.
+6. Retry on `WAIT` or `DIE` according to your agent policy.
 
 ## Documentation
 
-| Document | Description |
-|----------|-------------|
-| [Getting Started](docs/getting-started.md) | Install and run in 5 minutes |
-| [Architecture](docs/architecture.md) | Core concepts and design |
-| [API Reference](docs/api-reference.md) | REST API endpoints |
-| [JavaScript SDK](docs/sdk-javascript.md) | Node.js bindings |
-| [Python SDK](docs/sdk-python.md) | Python bindings |
-| [Protocol Spec](docs/protocol-spec.md) | KLIS formal specification |
-| [Examples](docs/examples.md) | 5 worked scenarios |
-| [Benchmarks](docs/benchmarks.md) | Performance data |
-| [Docker](docs/docker.md) | Container deployment |
+- [Getting Started](docs/getting-started.md)
+- [Examples](docs/examples.md)
+- [Python SDK](docs/sdk-python.md)
+- [JavaScript SDK](docs/sdk-javascript.md)
+- [Benchmarks and Proof](docs/benchmarks.md)
+- [LangChain integration](integrations/klock-langchain/README.md)
+- [Agent support](docs/agent-support.md)
+- [Releasing OSS v1](docs/releasing.md)
 
-## License
+## Not the OSS v1 front door
 
-MIT — See [LICENSE](LICENSE) for details.
-
----
-
-<div align="center">
-<sub>Built with 🦀 Rust · Designed for the Agent Economy</sub>
-</div>
+The dashboard, cluster, sidecar, policy engine, and Kubernetes packaging are not the public product surface for this release. This repo is centered on local multi-agent repo coordination first.

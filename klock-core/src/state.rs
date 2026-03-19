@@ -1,8 +1,8 @@
 use crate::conflict::{ConflictEngine, ConflictResult};
-use crate::scheduler::{WaitDieScheduler, VerdictStatus};
+use crate::scheduler::{VerdictStatus, WaitDieScheduler};
 use crate::types::{Lease, SPOTriple};
-use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IntentManifest {

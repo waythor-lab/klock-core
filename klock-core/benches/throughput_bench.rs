@@ -1,4 +1,4 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId};
+use criterion::{BenchmarkId, Criterion, black_box, criterion_group, criterion_main};
 
 use klock_core::client::KlockClient;
 use klock_core::infrastructure::LeaseStore;
@@ -11,9 +11,7 @@ fn bench_lease_acquire_release(c: &mut Criterion) {
             let mut client = KlockClient::new();
             client.register_agent("agent-1", 100);
 
-            let result = client.acquire_lease(
-                "agent-1", "s1", "FILE", "/app.ts", "MUTATES", 5000,
-            );
+            let result = client.acquire_lease("agent-1", "s1", "FILE", "/app.ts", "MUTATES", 5000);
 
             if let LeaseResult::Success { lease } = &result {
                 client.release_lease(&lease.id);
@@ -40,7 +38,8 @@ fn bench_throughput(c: &mut Criterion) {
 
                     // Each agent acquires a lease on a different file
                     for i in 0..count {
-                        let resource = ResourceRef::new(ResourceType::File, &format!("/file_{}.ts", i));
+                        let resource =
+                            ResourceRef::new(ResourceType::File, &format!("/file_{}.ts", i));
                         store.acquire(
                             &format!("agent-{}", i),
                             "s1",
@@ -68,7 +67,14 @@ fn bench_eviction(c: &mut Criterion) {
             for i in 0..1000 {
                 store.register_agent_priority(format!("a{}", i), i as u64);
                 let resource = ResourceRef::new(ResourceType::File, &format!("/f{}.ts", i));
-                store.acquire(&format!("a{}", i), "s1", resource, Predicate::Consumes, 100, 1000);
+                store.acquire(
+                    &format!("a{}", i),
+                    "s1",
+                    resource,
+                    Predicate::Consumes,
+                    100,
+                    1000,
+                );
             }
 
             // Evict all (now > expires_at)
@@ -77,5 +83,10 @@ fn bench_eviction(c: &mut Criterion) {
     });
 }
 
-criterion_group!(benches, bench_lease_acquire_release, bench_throughput, bench_eviction);
+criterion_group!(
+    benches,
+    bench_lease_acquire_release,
+    bench_throughput,
+    bench_eviction
+);
 criterion_main!(benches);

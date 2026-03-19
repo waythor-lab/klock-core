@@ -1,99 +1,82 @@
 # klock-langchain
 
-[![PyPI version](https://badge.fury.io/py/klock-langchain.svg)](https://badge.fury.io/py/klock-langchain)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+`klock-langchain` is the canonical OSS v1 integration for Klock.
 
-LangChain adapter for **Klock**, the coordination infrastructure that prevents Multi-Agent Race Conditions (MARC).
+It coordinates LangChain file-mutating tools so multiple agents can work in the same repo without silently overwriting each other.
 
-This package provides the `@klock_protected` decorator, allowing you to wrap any LangChain `BaseTool` with Klock's Wait-Die concurrency control. This ensures that when multiple autonomous agents try to modify the same resource simultaneously, they do not corrupt your data or cause silent data loss.
+This is coordination for cooperative tools that call Klock before mutating shared files. It is not yet filesystem-level enforcement.
 
-## Tiny Repro First
-
-If you want to see the failure mode before touching LangChain, start with the smallest repro in the repo:
-
-- [tiny_repro/race_condition.py](../../examples/tiny_repro/race_condition.py) — 2 workers, 1 file, deterministic silent overwrite
-- [tiny_repro/klock_fixed.py](../../examples/tiny_repro/klock_fixed.py) — same workflow protected by Klock
-
-From `Klock-OpenSource/examples/tiny_repro/`:
+## Install
 
 ```bash
-python3 race_condition.py
+pip install klock klock-langchain langchain-core
 ```
 
-Then start the local Klock server from `Klock-OpenSource/`:
+## Local workflow
 
-```bash
-cargo run --release -p klock-cli -- serve
-```
+For localhost workflows, `KlockHttpClient` now auto-starts the local server when it can find a launch command.
 
-And in `examples/tiny_repro/` run:
+When auto-start happens, the SDK logs the base URL, launch command, and PID.
 
-```bash
-python3 klock_fixed.py
-```
+Disable auto-start with:
 
-The expected outcome is intentionally simple:
+- `KLOCK_DISABLE_AUTOSTART=1`
+- `KlockHttpClient(..., auto_start=False)`
 
-- without coordination: final state has **1** entry instead of **2**
-- with Klock: final state has **2** entries
-
-## Installation
-
-```bash
-pip install klock-langchain klock langchain-core
-```
-
-## Quick Start
-
-Wrap your LangChain tools to enforce intent-based concurrency control before they execute:
+Then wrap your tool:
 
 ```python
+from klock import KlockHttpClient
+from klock_langchain import KlockConflictError, klock_protected
 from langchain_core.tools import BaseTool
-from klock import KlockClient
-from klock_langchain import klock_protected
 
-# Initialize a local Klock client and register this worker's priority
-klock_client = KlockClient()
-klock_client.register_agent("refactor-agent-1", 100)
+klock = KlockHttpClient(base_url="http://localhost:3100")
+klock.register_agent("agent-a", 100)
 
-# Define a tool and protect it with Klock
 class WriteFileTool(BaseTool):
     name = "write_file"
-    description = "Writes content to a file on disk"
-    
-    # Protect the _run method with Wait-Die concurrency control
+    description = "Mutates a repo file."
+
     @klock_protected(
-        klock_client=klock_client,
-        agent_id="refactor-agent-1",
-        session_id="session-123",
+        klock_client=klock,
+        agent_id="agent-a",
+        session_id="repo-session-a",
         resource_type="FILE",
-        resource_path_extractor=lambda kwargs: kwargs.get("filepath"),
-        predicate="MUTATES"
+        resource_path_extractor=lambda kwargs: kwargs["path"],
+        predicate="MUTATES",
     )
-    def _run(self, filepath: str, content: str) -> str:
-        with open(filepath, 'w') as f:
-            f.write(content)
-        return f"Successfully wrote to {filepath}"
+    def _run(self, path: str, content: str) -> str:
+        with open(path, "w", encoding="utf-8") as handle:
+            handle.write(content)
+        return f"updated {path}"
 ```
 
-## How It Works
+## Conflict behavior
 
-Klock uses **Wait-Die priority scheduling**, a classic database concurrency control algorithm, mapped specifically to LLM agents:
-- **Older agents** wait for younger agents to finish (Wait).
-- **Younger agents** abort immediately to prevent deadlocks (Die).
+`klock_protected(...)` uses Wait-Die semantics from the Klock server:
 
-If a "Die" abort occurs, `klock_protected` raises a `RuntimeError`. LangChain's built-in error handling catches this and returns it to the LLM agent, allowing the agent to gracefully pause and retry the operation later.
+- `GRANT`: the tool enters the critical section and runs
+- `WAIT`: the decorator sleeps for the server-provided backoff and retries
+- `DIE`: the decorator raises `KlockConflictError` so the caller can retry later
 
-This package is the current shipping integration surface. LangGraph and CrewAI can already use it at the tool layer even before dedicated adapters exist.
+Example recovery loop:
 
-## Bigger Demos
+```python
+try:
+    tool.invoke({"path": "src/auth.js", "content": "..."})
+except KlockConflictError as exc:
+    if exc.reason == "DIE":
+        # retry later
+        ...
+```
 
-After the tiny repro, the next assets are:
+## Proof assets
 
-- `examples/openrouter_langchain/demo.py` for a simple LangChain + Klock flow
-- `integrations/klock-langchain/real_agents_demo.py` for the larger crash-test style demonstration
-- `examples/openrouter_langchain/demo_scale.py` for the multi-agent benchmark path
+The repo includes deterministic proof scripts built around the same local-server workflow:
 
-## License
+- [examples/oss_v1/without_klock.py](/Users/nossairmouad/Projects/Klock/Klock-OpenSource/examples/oss_v1/without_klock.py)
+- [examples/oss_v1/with_klock.py](/Users/nossairmouad/Projects/Klock/Klock-OpenSource/examples/oss_v1/with_klock.py)
+- [examples/oss_v1/wait_die_trace.py](/Users/nossairmouad/Projects/Klock/Klock-OpenSource/examples/oss_v1/wait_die_trace.py)
+- [examples/oss_v1/langchain_base_tool_demo.py](/Users/nossairmouad/Projects/Klock/Klock-OpenSource/examples/oss_v1/langchain_base_tool_demo.py)
 
-MIT License
+Run them from [examples/oss_v1/README.md](/Users/nossairmouad/Projects/Klock/Klock-OpenSource/examples/oss_v1/README.md).

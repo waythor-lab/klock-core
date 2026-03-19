@@ -25,18 +25,30 @@ mod tests {
     #[test]
     fn consumes_consumes_compatible() {
         // Two reads should NOT conflict
-        assert!(!ConflictEngine::check_pair(Predicate::Consumes, Predicate::Consumes));
+        assert!(!ConflictEngine::check_pair(
+            Predicate::Consumes,
+            Predicate::Consumes
+        ));
     }
 
     #[test]
     fn consumes_mutates_conflicts() {
-        assert!(ConflictEngine::check_pair(Predicate::Consumes, Predicate::Mutates));
-        assert!(ConflictEngine::check_pair(Predicate::Mutates, Predicate::Consumes));
+        assert!(ConflictEngine::check_pair(
+            Predicate::Consumes,
+            Predicate::Mutates
+        ));
+        assert!(ConflictEngine::check_pair(
+            Predicate::Mutates,
+            Predicate::Consumes
+        ));
     }
 
     #[test]
     fn mutates_mutates_conflicts() {
-        assert!(ConflictEngine::check_pair(Predicate::Mutates, Predicate::Mutates));
+        assert!(ConflictEngine::check_pair(
+            Predicate::Mutates,
+            Predicate::Mutates
+        ));
     }
 
     #[test]
@@ -66,22 +78,40 @@ mod tests {
     #[test]
     fn provides_consumes_compatible() {
         // Creating a resource while another reads it is safe
-        assert!(!ConflictEngine::check_pair(Predicate::Provides, Predicate::Consumes));
-        assert!(!ConflictEngine::check_pair(Predicate::Consumes, Predicate::Provides));
+        assert!(!ConflictEngine::check_pair(
+            Predicate::Provides,
+            Predicate::Consumes
+        ));
+        assert!(!ConflictEngine::check_pair(
+            Predicate::Consumes,
+            Predicate::Provides
+        ));
     }
 
     #[test]
     fn depends_on_consumes_compatible() {
         // Dependency with read is safe
-        assert!(!ConflictEngine::check_pair(Predicate::DependsOn, Predicate::Consumes));
-        assert!(!ConflictEngine::check_pair(Predicate::Consumes, Predicate::DependsOn));
+        assert!(!ConflictEngine::check_pair(
+            Predicate::DependsOn,
+            Predicate::Consumes
+        ));
+        assert!(!ConflictEngine::check_pair(
+            Predicate::Consumes,
+            Predicate::DependsOn
+        ));
     }
 
     #[test]
     fn depends_on_mutates_conflicts() {
         // If you depend on something someone is mutating, that's a conflict
-        assert!(ConflictEngine::check_pair(Predicate::DependsOn, Predicate::Mutates));
-        assert!(ConflictEngine::check_pair(Predicate::Mutates, Predicate::DependsOn));
+        assert!(ConflictEngine::check_pair(
+            Predicate::DependsOn,
+            Predicate::Mutates
+        ));
+        assert!(ConflictEngine::check_pair(
+            Predicate::Mutates,
+            Predicate::DependsOn
+        ));
     }
 
     #[test]

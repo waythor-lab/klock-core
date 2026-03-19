@@ -1,7 +1,11 @@
 [package]
 name = "klock-py"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
+description = "Python bindings for the Klock coordination kernel"
+license = "MIT"
+repository = "https://github.com/waythor-lab/klock"
+homepage = "https://klockcore.com"
 
 [lib]
 name = "klock"
@@ -12,3 +16,4 @@ klock-core = { path = "../klock-core" }
 pyo3 = { version = "0.24", features = ["extension-module", "abi3-py38"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+ureq = { version = "2.12", features = ["json"] }

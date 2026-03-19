@@ -3,7 +3,9 @@
 
 use crate::infrastructure::LeaseStore;
 use crate::infrastructure_in_memory::InMemoryLeaseStore;
-use crate::state::{IntentManifest, KernelVerdict, KernelVerdictStatus, KlockKernel, StateSnapshot};
+use crate::state::{
+    IntentManifest, KernelVerdict, KernelVerdictStatus, KlockKernel, StateSnapshot,
+};
 use crate::types::*;
 use std::collections::HashMap;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -34,7 +36,9 @@ impl LeaseStoreExt for InMemoryLeaseStore {
 #[cfg(feature = "sqlite")]
 impl LeaseStoreExt for crate::infrastructure_sqlite::SqliteLeaseStore {
     fn register_agent_priority(&mut self, agent_id: String, priority: u64) {
-        crate::infrastructure_sqlite::SqliteLeaseStore::register_agent_priority(self, agent_id, priority);
+        crate::infrastructure_sqlite::SqliteLeaseStore::register_agent_priority(
+            self, agent_id, priority,
+        );
     }
     fn get_priorities(&self) -> HashMap<String, u64> {
         crate::infrastructure_sqlite::SqliteLeaseStore::get_priorities(self)
@@ -77,7 +81,8 @@ impl KlockClient {
     /// Register an agent with a priority timestamp.
     /// Lower timestamps = higher priority (older = senior).
     pub fn register_agent(&mut self, agent_id: &str, priority: u64) {
-        self.store.register_agent_priority(agent_id.to_string(), priority);
+        self.store
+            .register_agent_priority(agent_id.to_string(), priority);
     }
 
     /// Declare an intent manifest and get a kernel verdict.
@@ -111,14 +116,12 @@ impl KlockClient {
         predicate: &str,
         ttl: u64,
     ) -> LeaseResult {
-        let resource = ResourceRef::new(
-            parse_resource_type(resource_type),
-            resource_path,
-        );
+        let resource = ResourceRef::new(parse_resource_type(resource_type), resource_path);
         let pred = parse_predicate(predicate);
         let now = now_ms();
 
-        self.store.acquire(agent_id, session_id, resource, pred, ttl, now)
+        self.store
+            .acquire(agent_id, session_id, resource, pred, ttl, now)
     }
 
     /// Release a held lease by its ID.

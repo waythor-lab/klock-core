@@ -3,7 +3,7 @@
 use napi_derive::napi;
 
 use klock_core::client::KlockClient as RustClient;
-use klock_core::types::{LeaseResult as RustLeaseResult, LeaseFailureReason};
+use klock_core::types::{LeaseFailureReason, LeaseResult as RustLeaseResult};
 
 // ─── JS-facing KlockClient ─────────────────────────────────────────────────
 
@@ -49,17 +49,17 @@ impl KlockClient {
         );
 
         match result {
-            RustLeaseResult::Success { lease } => {
-                serde_json::json!({
-                    "success": true,
-                    "leaseId": lease.id,
-                    "agentId": lease.agent_id,
-                    "resource": format!("{}:{}", resource_type, resource_path),
-                    "expiresAt": lease.expires_at,
-                })
-                .to_string()
-            }
-            RustLeaseResult::Failure { reason, wait_time, .. } => {
+            RustLeaseResult::Success { lease } => serde_json::json!({
+                "success": true,
+                "leaseId": lease.id,
+                "agentId": lease.agent_id,
+                "resource": format!("{}:{}", resource_type, resource_path),
+                "expiresAt": lease.expires_at,
+            })
+            .to_string(),
+            RustLeaseResult::Failure {
+                reason, wait_time, ..
+            } => {
                 let reason_str = match reason {
                     LeaseFailureReason::Wait => "WAIT",
                     LeaseFailureReason::Die => "DIE",

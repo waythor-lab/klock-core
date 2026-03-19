@@ -18,7 +18,7 @@ impl ConflictEngine {
     /// Cols: New Predicate (Requesting)
     /// True = Compatible (No Conflict)
     /// False = Incompatible (Conflict)
-    /// 
+    ///
     /// Order: Provides(0), Consumes(1), Mutates(2), Deletes(3), DependsOn(4), Renames(5)
     #[rustfmt::skip]
     const MATRIX: [[bool; 6]; 6] = [
@@ -49,7 +49,9 @@ impl ConflictEngine {
             }
 
             // Skip if it is the same agent in the same session (reentrant lock logic)
-            if existing.subject == new_triple.subject && existing.session_id == new_triple.session_id {
+            if existing.subject == new_triple.subject
+                && existing.session_id == new_triple.session_id
+            {
                 continue;
             }
 

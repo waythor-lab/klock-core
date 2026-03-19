@@ -73,3 +73,50 @@ class KlockClient:
             The number of leases evicted.
         """
         ...
+
+
+class KlockHttpClient:
+    """HTTP client for a local or remote Klock coordination server."""
+
+    def __init__(
+        self,
+        base_url: str = "http://localhost:3100",
+        api_key: Optional[str] = None,
+        timeout_ms: int = 5000,
+        auto_start: bool = True,
+        startup_timeout_ms: int = 5000,
+        server_command: Optional[list[str]] = None,
+    ) -> None:
+        ...
+
+    def register_agent(self, agent_id: str, priority: int) -> None:
+        ...
+
+    def auto_start_enabled(self) -> bool:
+        ...
+
+    def auto_start_disabled_by_env(self) -> bool:
+        ...
+
+    def last_started_pid(self) -> Optional[int]:
+        ...
+
+    def acquire_lease(
+        self,
+        agent_id: str,
+        session_id: str,
+        resource_type: str,
+        resource_path: str,
+        predicate: str,
+        ttl: int,
+    ) -> dict[str, object]:
+        ...
+
+    def release_lease(self, lease_id: str) -> bool:
+        ...
+
+    def heartbeat_lease(self, lease_id: str) -> bool:
+        ...
+
+    def list_leases(self) -> list[dict[str, object]]:
+        ...

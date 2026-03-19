@@ -1,6 +1,6 @@
+use crate::infrastructure::LeaseStore;
 use crate::scheduler::{VerdictStatus, WaitDieScheduler};
 use crate::types::{Lease, LeaseFailureReason, LeaseResult, Predicate, ResourceRef};
-use crate::infrastructure::LeaseStore;
 use std::collections::HashMap;
 
 pub struct InMemoryLeaseStore {
@@ -41,7 +41,7 @@ impl LeaseStore for InMemoryLeaseStore {
         self.evict_expired(now);
 
         let active_leases = self.get_active_leases();
-        
+
         // 1. Check Wait-Die Scheduler
         let verdict = WaitDieScheduler::decide(
             agent_id,
