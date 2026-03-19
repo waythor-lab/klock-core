@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert';
-import { KlockClient, KlockHttpClient } from '../index.js';
+import klockModule from '../index.js';
+
+const { KlockClient, KlockHttpClient } = klockModule;
 
 test('klock-js smoke test', async (t) => {
     const client = new KlockClient();
