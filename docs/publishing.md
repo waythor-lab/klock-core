@@ -54,19 +54,19 @@ If you already published an earlier version of these exact packages and you stil
 
 Before publishing, check whether the exact version number is already live.
 
-If `0.1.0` is already published on a package you control:
+If `0.1.0` or `0.1.1` is already published on a package you control:
 
 - bump the local version before publishing
-- use `0.1.1` for a packaging/docs fix release
+- use `0.1.2` for the next packaging/docs fix release
 - use `0.2.0` if the public API or product surface changed materially
 
 Do not try to overwrite an existing version. npm and PyPI will reject that anyway.
 
 Current local versions in this repo:
 
-- `klock`: `0.1.1`
-- `klock-langchain`: `0.1.1`
-- `@klock-protocol/core`: `0.1.1`
+- `klock`: `0.1.2`
+- `klock-langchain`: `0.1.2`
+- `@klock-protocol/core`: `0.1.2`
 
 Files:
 
@@ -227,8 +227,8 @@ Instead:
 3. push the tag
 
 ```bash
-git tag v0.1.1
-git push origin v0.1.1
+git tag v0.1.2
+git push origin v0.1.2
 ```
 
 That triggers:
@@ -244,7 +244,7 @@ Which builds:
 
 If you bump versions first, use the same version in the tag:
 
-- package version `0.1.1` -> tag `v0.1.1`
+- package version `0.1.2` -> tag `v0.1.2`
 
 ---
 
@@ -333,8 +333,8 @@ npm publish --access public
 
 # 5. tag release for CLI binaries
 cd ../..
-git tag v0.1.1
-git push origin v0.1.1
+git tag v0.1.2
+git push origin v0.1.2
 ```
 
-The repo is already bumped to `0.1.1`, so use `v0.1.1` for the release tag.
+The repo is already bumped to `0.1.2`, so use `v0.1.2` for the release tag.

@@ -754,7 +754,7 @@ dependencies = [
 
 [[package]]
 name = "klock-cli"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "axum",
  "clap",
@@ -770,7 +770,7 @@ dependencies = [
 
 [[package]]
 name = "klock-core"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "criterion",
  "nanoid",
@@ -781,7 +781,7 @@ dependencies = [
 
 [[package]]
 name = "klock-js"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "klock-core",
  "napi",
@@ -793,7 +793,7 @@ dependencies = [
 
 [[package]]
 name = "klock-py"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "klock-core",
  "pyo3",

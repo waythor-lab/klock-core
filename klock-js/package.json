@@ -1,6 +1,6 @@
 {
     "name": "@klock-protocol/core",
-    "version": "0.1.1",
+    "version": "0.1.2",
     "description": "Native Rust-powered coordination kernel for multi-agent systems. Prevents AI agent race conditions.",
     "main": "index.js",
     "exports": {

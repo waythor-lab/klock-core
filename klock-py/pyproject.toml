@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "klock"
-version = "0.1.1"
+version = "0.1.2"
 description = "Native Rust-powered coordination kernel for multi-agent systems"
 readme = "README.md"
 authors = [

@@ -1,6 +1,6 @@
 [project]
 name = "klock-langchain"
-version = "0.1.1"
+version = "0.1.2"
 description = "LangChain integration for Klock"
 readme = "README.md"
 authors = [
@@ -11,7 +11,7 @@ keywords = ["klock", "langchain", "agents", "concurrency"]
 urls = {repository = "https://github.com/waythor-lab/klock", homepage = "https://klockcore.com"}
 dependencies = [
     "langchain-core>=0.1.0",
-    "klock>=0.1.1"
+    "klock>=0.1.2"
 ]
 requires-python = ">=3.8"
 
