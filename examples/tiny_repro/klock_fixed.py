@@ -3,7 +3,7 @@ import os
 import threading
 import time
 from typing import Dict
-from urllib import error, request
+
 
 
 DB_FILE = os.path.join(os.path.dirname(__file__), "shared_state.json")
@@ -11,72 +11,7 @@ RESOURCE_PATH = "/examples/tiny_repro/shared_state.json"
 BASE_URL = os.environ.get("KLOCK_BASE_URL", "http://localhost:3100")
 
 
-class KlockHttpClient:
-    def __init__(self, base_url: str):
-        self.base_url = base_url.rstrip("/")
-
-    def _request(self, method: str, path: str, payload: Dict[str, object] | None = None) -> Dict[str, object]:
-        body = None
-        headers = {}
-        if payload is not None:
-            body = json.dumps(payload).encode("utf-8")
-            headers["Content-Type"] = "application/json"
-
-        req = request.Request(
-            f"{self.base_url}{path}",
-            data=body,
-            headers=headers,
-            method=method,
-        )
-
-        try:
-            with request.urlopen(req, timeout=5) as response:
-                raw = response.read().decode("utf-8")
-                return json.loads(raw) if raw else {}
-        except error.HTTPError as exc:
-            raw = exc.read().decode("utf-8")
-            return json.loads(raw) if raw else {}
-
-    def register_agent(self, agent_id: str, priority: int) -> None:
-        self._request(
-            "POST",
-            "/agents",
-            {"agent_id": agent_id, "priority": priority},
-        )
-
-    def acquire_lease(
-        self,
-        agent_id: str,
-        session_id: str,
-        resource_type: str,
-        resource_path: str,
-        predicate: str,
-        ttl: int,
-    ) -> Dict[str, object]:
-        payload = self._request(
-            "POST",
-            "/leases",
-            {
-                "agent_id": agent_id,
-                "session_id": session_id,
-                "resource_type": resource_type,
-                "resource_path": resource_path,
-                "predicate": predicate,
-                "ttl": ttl,
-            },
-        )
-
-        if payload.get("success"):
-            return {"success": True, "lease_id": payload["data"]["lease_id"]}
-
-        return {
-            "success": False,
-            "reason": payload.get("reason", "CONFLICT"),
-            "wait_time": payload.get("wait_time", 1000),
-        }
-
-    def release_lease(self, lease_id: str) -> None:
-        self._request("DELETE", f"/leases/{lease_id}")
+from klock import KlockHttpClient
 
 
 def reset_db():
@@ -137,7 +72,7 @@ def main():
     try:
         client.register_agent("agent_A", 100)
         client.register_agent("agent_B", 200)
-    except (error.URLError, error.HTTPError) as exc:
+    except Exception as exc:
         print(f"Failed to register agents against {BASE_URL}: {exc}")
         print("Start the Klock server first:")
         print("  cargo run --release -p klock-cli -- serve")

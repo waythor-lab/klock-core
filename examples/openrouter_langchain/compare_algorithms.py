@@ -137,24 +137,7 @@ def run_optimistic_agent(agent_id, acc_from, acc_to, metrics, metrics_lock):
 # ==========================================
 # 4. KLOCK (Wait-Die - Deadlock Prevention)
 # ==========================================
-class KlockHttpClient:
-    def __init__(self, base_url="http://localhost:3100"):
-        self.base_url = base_url
-    def register_agent(self, agent_id, priority):
-        requests.post(f"{self.base_url}/agents", json={"agent_id": agent_id, "priority": priority})
-    def acquire_lease(self, agent_id, session_id, resource):
-        res = requests.post(f"{self.base_url}/leases", json={
-            "agent_id": agent_id, "session_id": session_id,
-            "resource_type": "FILE", "resource_path": resource,
-            "predicate": "MUTATES", "ttl": 10000
-        }).json()
-        if res.get("success"):
-            return "GRANTED", res["data"]["lease_id"]
-        reason = res.get("reason")
-        wait_time = res.get("wait_time", 100) or 100
-        return reason, wait_time
-    def release_lease(self, lease_id):
-        requests.delete(f"{self.base_url}/leases/{lease_id}")
+from klock import KlockHttpClient
 
 klock = KlockHttpClient()
 
@@ -167,38 +150,44 @@ def run_klock_agent(agent_id, acc_from, acc_to, metrics, metrics_lock, priority)
         lease_to = None
         try:
             # 1. Acquire FROM
-            status, payload = klock.acquire_lease(agent_id, f"sess_{agent_id}", str(acc_from))
-            if status == "WAIT":
-                with metrics_lock: metrics["waits"] += 1
-                time.sleep(payload / 1000.0)
-                continue
-            elif status == "DIE":
-                with metrics_lock: metrics["dies"] += 1
-                time.sleep(payload / 1000.0)
-                continue
-            elif status != "GRANTED":
-                continue
-            lease_from = payload
+            res = klock.acquire_lease(agent_id, f"sess_{agent_id}", "FILE", str(acc_from), "MUTATES", 10000)
+            if not res.get("success"):
+                status = res.get("reason")
+                wait_time = res.get("wait_time", 100)
+                if status == "WAIT":
+                    with metrics_lock: metrics["waits"] += 1
+                    time.sleep(wait_time / 1000.0)
+                    continue
+                elif status == "DIE":
+                    with metrics_lock: metrics["dies"] += 1
+                    time.sleep(wait_time / 1000.0)
+                    continue
+                else:
+                    continue
+            lease_from = res["lease_id"]
             
             time.sleep(0.05) # encourage interleaving
             
             # 2. Acquire TO
-            status, payload = klock.acquire_lease(agent_id, f"sess_{agent_id}", str(acc_to))
-            if status == "WAIT":
-                with metrics_lock: metrics["waits"] += 1
-                time.sleep(payload / 1000.0)
-                if lease_from: klock.release_lease(lease_from)
-                continue
-            elif status == "DIE":
-                # Wait-Die preventing deadlock!
-                with metrics_lock: metrics["dies"] += 1
-                if lease_from: klock.release_lease(lease_from)
-                time.sleep(payload / 1000.0)
-                continue
-            elif status != "GRANTED":
-                if lease_from: klock.release_lease(lease_from)
-                continue
-            lease_to = payload
+            res = klock.acquire_lease(agent_id, f"sess_{agent_id}", "FILE", str(acc_to), "MUTATES", 10000)
+            if not res.get("success"):
+                status = res.get("reason")
+                wait_time = res.get("wait_time", 100)
+                if status == "WAIT":
+                    with metrics_lock: metrics["waits"] += 1
+                    time.sleep(wait_time / 1000.0)
+                    if lease_from: klock.release_lease(lease_from)
+                    continue
+                elif status == "DIE":
+                    # Wait-Die preventing deadlock!
+                    with metrics_lock: metrics["dies"] += 1
+                    if lease_from: klock.release_lease(lease_from)
+                    time.sleep(wait_time / 1000.0)
+                    continue
+                else:
+                    if lease_from: klock.release_lease(lease_from)
+                    continue
+            lease_to = res["lease_id"]
 
             # Critical Section
             data_from = read_account(acc_from)

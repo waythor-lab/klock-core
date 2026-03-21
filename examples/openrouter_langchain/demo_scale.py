@@ -16,28 +16,7 @@ import requests
 # ==========================================
 # 1. SETUP KLOCK HTTP CLIENT
 # ==========================================
-class KlockHttpClient:
-    def __init__(self, base_url="http://localhost:3100"):
-        self.base_url = base_url
-        
-    def register_agent(self, agent_id, priority):
-        requests.post(f"{self.base_url}/agents", json={"agent_id": agent_id, "priority": priority})
-        
-    def acquire_lease(self, agent_id, session_id, resource_type, resource_path, predicate, ttl):
-        res = requests.post(f"{self.base_url}/leases", json={
-            "agent_id": agent_id, "session_id": session_id,
-            "resource_type": resource_type, "resource_path": resource_path,
-            "predicate": predicate, "ttl": ttl
-        }).json()
-        
-        if res.get("success"):
-            return {"success": True, "lease_id": res["data"]["lease_id"]}
-        else:
-            return {"success": False, "reason": res.get("reason", "CONFLICT"), "wait_time": res.get("wait_time", 1000)}
-            
-    def release_lease(self, lease_id):
-        requests.delete(f"{self.base_url}/leases/{lease_id}")
-
+from klock import KlockHttpClient
 klock = KlockHttpClient()
 
 # ==========================================
