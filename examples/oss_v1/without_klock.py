@@ -15,7 +15,9 @@ def worker(agent_id: str) -> None:
     print(f"[{agent_id}] read snapshot with {feature_count(snapshot)} feature blocks")
 
     START_BARRIER.wait()
-    time.sleep(0.2)
+    # Deterministic lost update: both agents read the same old state, then the
+    # younger write lands last and cleanly overwrites the older update.
+    time.sleep(0.1 if agent_id == "agent_older" else 0.2)
 
     TARGET_FILE.write_text(build_update(snapshot, marker, code), encoding="utf-8")
     print(f"[{agent_id}] wrote {marker}")
