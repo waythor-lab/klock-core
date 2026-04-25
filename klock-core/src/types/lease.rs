@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use super::{Predicate, ResourceRef};
+use super::{Confidence, Predicate, ResourceRef, SPOTriple};
 
 /// Lease states
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -65,6 +65,24 @@ impl Lease {
     }
 }
 
+/// Build a kernel-side intent triple from a held lease.
+/// Used by KlockClient to derive `StateSnapshot.active_intents` from active leases,
+/// avoiding a separate intent ledger that can drift out of sync.
+impl From<&Lease> for SPOTriple {
+    fn from(lease: &Lease) -> Self {
+        SPOTriple {
+            id: lease.id.clone(),
+            subject: lease.agent_id.clone(),
+            predicate: lease.predicate,
+            object: lease.resource.clone(),
+            timestamp: lease.acquired_at,
+            confidence: Confidence::High,
+            session_id: lease.session_id.clone(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LeaseFailureReason {
     /// Another agent holds a conflicting lease
     Conflict,
@@ -76,9 +94,14 @@ pub enum LeaseFailureReason {
     ResourceLocked,
     /// The session has expired
     SessionExpired,
+    /// Persistent storage backing the lease store is unavailable.
+    /// Returned when the SQLite store is poisoned (read failure or persist failure).
+    /// Maps to HTTP 503 — distinct from coordination conflicts (HTTP 409).
+    StorageUnavailable,
 }
 
 /// Result of attempting to acquire a lease
+#[derive(Debug, Clone)]
 pub enum LeaseResult {
     Success {
         lease: Lease,

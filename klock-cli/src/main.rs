@@ -1,5 +1,4 @@
-mod handlers;
-mod server;
+use klock_cli::server;
 
 use clap::{Parser, Subcommand};
 

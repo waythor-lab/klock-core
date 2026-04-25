@@ -19,6 +19,14 @@ const VALID_RESOURCE_TYPES: &[&str] = &[
     "CONFIG_KEY",
 ];
 
+// Length / cardinality caps applied uniformly across request types.
+// Picked to be far above any legitimate value while still bounding
+// memory and log footprint when an attacker sends pathological input.
+pub const MAX_AGENT_ID_LEN: usize = 256;
+pub const MAX_SESSION_ID_LEN: usize = 256;
+pub const MAX_RESOURCE_PATH_LEN: usize = 4096;
+pub const MAX_INTENTS_PER_REQUEST: usize = 256;
+
 // ─── Validation Helpers ─────────────────────────────────────────────────────
 
 pub fn validate_predicate(predicate: &str) -> Result<(), String> {
@@ -45,6 +53,17 @@ pub fn validate_resource_type(resource_type: &str) -> Result<(), String> {
     }
 }
 
+/// Reject overlong identifier strings. The bound is reported but the
+/// offending value is never echoed to the client (avoids amplifying
+/// pathological payloads in error responses or logs).
+pub fn validate_len(field: &str, value: &str, max: usize) -> Result<(), String> {
+    if value.len() > max {
+        Err(format!("{} exceeds maximum length of {} bytes", field, max))
+    } else {
+        Ok(())
+    }
+}
+
 // ─── Request Types ──────────────────────────────────────────────────────────
 
 #[derive(Deserialize)]
@@ -68,12 +87,15 @@ impl AcquireLeaseRequest {
         if self.agent_id.is_empty() {
             return Err("agent_id is required".to_string());
         }
+        validate_len("agent_id", &self.agent_id, MAX_AGENT_ID_LEN)?;
         if self.session_id.is_empty() {
             return Err("session_id is required".to_string());
         }
+        validate_len("session_id", &self.session_id, MAX_SESSION_ID_LEN)?;
         if self.resource_path.is_empty() {
             return Err("resource_path is required".to_string());
         }
+        validate_len("resource_path", &self.resource_path, MAX_RESOURCE_PATH_LEN)?;
         validate_predicate(&self.predicate)?;
         validate_resource_type(&self.resource_type)?;
         if self.ttl == 0 {
@@ -100,16 +122,29 @@ impl DeclareIntentRequest {
         if self.agent_id.is_empty() {
             return Err("agent_id is required".to_string());
         }
+        validate_len("agent_id", &self.agent_id, MAX_AGENT_ID_LEN)?;
         if self.session_id.is_empty() {
             return Err("session_id is required".to_string());
         }
+        validate_len("session_id", &self.session_id, MAX_SESSION_ID_LEN)?;
         if self.intents.is_empty() {
             return Err("intents must not be empty".to_string());
+        }
+        if self.intents.len() > MAX_INTENTS_PER_REQUEST {
+            return Err(format!(
+                "intents exceeds maximum count of {}",
+                MAX_INTENTS_PER_REQUEST
+            ));
         }
         for (i, intent) in self.intents.iter().enumerate() {
             validate_predicate(&intent.predicate).map_err(|e| format!("intents[{}]: {}", i, e))?;
             validate_resource_type(&intent.resource_type)
                 .map_err(|e| format!("intents[{}]: {}", i, e))?;
+            validate_len(
+                &format!("intents[{}].resource_path", i),
+                &intent.resource_path,
+                MAX_RESOURCE_PATH_LEN,
+            )?;
         }
         Ok(())
     }

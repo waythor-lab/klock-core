@@ -1,4 +1,4 @@
-use std::process::{Command, Stdio};
+use std::process::{Child, Command, Stdio};
 use std::sync::Mutex;
 use std::thread::sleep;
 use std::time::{Duration, Instant};
@@ -19,6 +19,12 @@ pub struct KlockClient {
 }
 
 /// HTTP client for talking to a local or remote Klock server.
+///
+/// When `auto_start=True` (default) and the `base_url` is local, the client
+/// will spawn a `klock serve` subprocess if no server is reachable. The
+/// child process handle is retained so that `shutdown()`, `__exit__`, and
+/// `Drop` can terminate it. Servers that were already running when this
+/// client was constructed are left untouched.
 #[pyclass]
 pub struct KlockHttpClient {
     base_url: String,
@@ -30,6 +36,9 @@ pub struct KlockHttpClient {
     server_command: Vec<String>,
     auto_start_attempted: Mutex<bool>,
     last_started_pid: Mutex<Option<u32>>,
+    /// Held only when this client owns the spawned server. Released on
+    /// `shutdown()` / context-manager exit / Drop.
+    child_handle: Mutex<Option<Child>>,
 }
 
 #[pymethods]
@@ -117,7 +126,39 @@ impl KlockHttpClient {
             server_command: server_command.unwrap_or_else(default_server_command),
             auto_start_attempted: Mutex::new(false),
             last_started_pid: Mutex::new(None),
+            child_handle: Mutex::new(None),
         }
+    }
+
+    /// Terminate the auto-started server subprocess, if this client owns one.
+    /// Servers that were already running when this client was constructed are
+    /// left running. Safe to call multiple times.
+    pub fn shutdown(&self) {
+        let mut guard = self.child_handle.lock().unwrap();
+        if let Some(mut child) = guard.take() {
+            // Best-effort: ignore the result. The child may have already
+            // exited on its own (CTRL-C, timeout, etc.).
+            let _ = child.kill();
+            let _ = child.wait();
+        }
+    }
+
+    /// Context-manager entry. Returns self so the bound name in `with` is
+    /// the client. Implemented as `__enter__` to match Python convention.
+    pub fn __enter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        slf
+    }
+
+    /// Context-manager exit: terminates the auto-started server.
+    pub fn __exit__(
+        &self,
+        _exc_type: PyObject,
+        _exc_val: PyObject,
+        _exc_tb: PyObject,
+    ) -> bool {
+        self.shutdown();
+        // Returning false signals "do not suppress any in-flight exception".
+        false
     }
 
     /// Returns true when localhost auto-start is currently enabled.
@@ -399,7 +440,7 @@ impl KlockHttpClient {
             format_server_command(&self.server_command),
         );
 
-        let mut child = Command::new(program)
+        let child = Command::new(program)
             .args(args)
             .stdout(Stdio::null())
             .stderr(Stdio::null())
@@ -415,6 +456,10 @@ impl KlockHttpClient {
         let pid = child.id();
         *self.auto_start_attempted.lock().unwrap() = true;
         *self.last_started_pid.lock().unwrap() = Some(pid);
+        // Retain ownership of the spawned process so we can terminate it on
+        // shutdown(). Without this, a parent process exit leaves the server
+        // orphaned.
+        *self.child_handle.lock().unwrap() = Some(child);
 
         eprintln!(
             "Started local Klock server for {} with PID {}",
@@ -423,13 +468,24 @@ impl KlockHttpClient {
 
         let started = Instant::now();
         while started.elapsed() < Duration::from_millis(self.startup_timeout_ms) {
-            if let Ok(Some(status)) = child.try_wait() {
-                return Err(PyRuntimeError::new_err(format!(
-                    "Klock server process exited before becoming healthy at {}. Exit status: {}. Start it manually with: {}",
-                    self.base_url,
-                    status,
-                    format_server_command(&self.server_command),
-                )));
+            // Briefly check whether the child has already exited.
+            // Holding the lock across the entire loop would deadlock with
+            // any concurrent shutdown() — instead we lock per-iteration.
+            {
+                let mut guard = self.child_handle.lock().unwrap();
+                if let Some(child) = guard.as_mut() {
+                    if let Ok(Some(status)) = child.try_wait() {
+                        // Child died early: drop it from the handle so we
+                        // don't keep a stale Child around.
+                        *guard = None;
+                        return Err(PyRuntimeError::new_err(format!(
+                            "Klock server process exited before becoming healthy at {}. Exit status: {}. Start it manually with: {}",
+                            self.base_url,
+                            status,
+                            format_server_command(&self.server_command),
+                        )));
+                    }
+                }
             }
 
             if self.health_check().is_ok() {
@@ -464,6 +520,22 @@ impl KlockHttpClient {
         match request.call() {
             Ok(_) => Ok(()),
             Err(err) => Err(err),
+        }
+    }
+}
+
+impl Drop for KlockHttpClient {
+    fn drop(&mut self) {
+        // Best-effort: kill any auto-started server we still own. This is the
+        // safety net for code paths that don't use `with KlockHttpClient(...)`.
+        // Python's GC timing means this is not deterministic; users who need
+        // immediate shutdown should call `shutdown()` or use the context
+        // manager.
+        if let Ok(mut guard) = self.child_handle.lock() {
+            if let Some(mut child) = guard.take() {
+                let _ = child.kill();
+                let _ = child.wait();
+            }
         }
     }
 }
@@ -583,6 +655,7 @@ fn lease_result_to_dict<'py>(
                 LeaseFailureReason::Conflict => "CONFLICT",
                 LeaseFailureReason::ResourceLocked => "RESOURCE_LOCKED",
                 LeaseFailureReason::SessionExpired => "SESSION_EXPIRED",
+                LeaseFailureReason::StorageUnavailable => "STORAGE_UNAVAILABLE",
             };
             dict.set_item("success", false)?;
             dict.set_item("reason", reason_str)?;

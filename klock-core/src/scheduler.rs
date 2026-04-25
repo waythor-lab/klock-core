@@ -69,24 +69,29 @@ impl WaitDieScheduler {
                 None => continue, // If holder has no priority, assume they are younger
             };
 
-            if requester_priority < holder_priority {
-                // Requester is OLDER (lower timestamp) -> WAIT
+            // Strict ordering: lower priority wins; ties broken lexicographically by agent_id.
+            // This guarantees an antisymmetric, deterministic ordering so equal priorities
+            // do not produce symmetric DIE-loops.
+            let requester_key = (requester_priority, requesting_agent_id);
+            let holder_key = (holder_priority, holder.agent_id.as_str());
+            if requester_key < holder_key {
+                // Requester is OLDER -> WAIT
                 return SchedulerVerdict {
                     status: VerdictStatus::Wait,
                     reason: Some(format!(
-                        "Senior ({}) waiting for Junior ({}) to complete.",
-                        requester_priority, holder_priority
+                        "Senior ({}, {}) waiting for Junior ({}, {}) to complete.",
+                        requester_priority, requesting_agent_id, holder_priority, holder.agent_id
                     )),
                     held_by: Some(holder.agent_id.clone()),
                     retry_after_ms: None,
                 };
             } else {
-                // Requester is YOUNGER (higher timestamp) -> DIE
+                // Requester is YOUNGER (or same priority with later agent_id) -> DIE
                 return SchedulerVerdict {
                     status: VerdictStatus::Die,
                     reason: Some(format!(
-                        "Conflict: Senior ({}) vs Junior ({}). Junior must DIE.",
-                        holder_priority, requester_priority
+                        "Conflict: Senior ({}, {}) vs Junior ({}, {}). Junior must DIE.",
+                        holder_priority, holder.agent_id, requester_priority, requesting_agent_id
                     )),
                     held_by: Some(holder.agent_id.clone()),
                     retry_after_ms: Some(1000),

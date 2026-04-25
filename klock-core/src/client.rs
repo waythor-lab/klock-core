@@ -3,9 +3,7 @@
 
 use crate::infrastructure::LeaseStore;
 use crate::infrastructure_in_memory::InMemoryLeaseStore;
-use crate::state::{
-    IntentManifest, KernelVerdict, KernelVerdictStatus, KlockKernel, StateSnapshot,
-};
+use crate::state::{IntentManifest, KernelVerdict, KlockKernel, StateSnapshot};
 use crate::types::*;
 use std::collections::HashMap;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -17,11 +15,17 @@ fn now_ms() -> u64 {
         .as_millis() as u64
 }
 
-/// Trait combining LeaseStore with agent priority management.
+/// Trait combining LeaseStore with agent priority management plus
+/// a passthrough for the storage-poisoned health flag.
 /// Allows KlockClient to be generic over storage backends.
 pub trait LeaseStoreExt: LeaseStore {
     fn register_agent_priority(&mut self, agent_id: String, priority: u64);
     fn get_priorities(&self) -> HashMap<String, u64>;
+    /// True when the underlying storage has hit a non-recoverable error
+    /// and the store is now refusing acquires to fail closed.
+    fn is_poisoned(&self) -> bool {
+        false
+    }
 }
 
 impl LeaseStoreExt for InMemoryLeaseStore {
@@ -43,14 +47,18 @@ impl LeaseStoreExt for crate::infrastructure_sqlite::SqliteLeaseStore {
     fn get_priorities(&self) -> HashMap<String, u64> {
         crate::infrastructure_sqlite::SqliteLeaseStore::get_priorities(self)
     }
+    fn is_poisoned(&self) -> bool {
+        crate::infrastructure_sqlite::SqliteLeaseStore::is_poisoned(self)
+    }
 }
 
 /// The main entry point for using Klock. Manages agents, leases, and
 /// conflict resolution through a single ergonomic API.
+///
+/// The kernel's view of "active intents" is derived from active leases at
+/// snapshot time, so there is no separate intent ledger to keep in sync.
 pub struct KlockClient {
     store: Box<dyn LeaseStoreExt + Send>,
-    /// Tracks active intents per session for conflict checking
-    active_intents: Vec<SPOTriple>,
     /// Counter for generating unique IDs
     id_counter: u64,
 }
@@ -60,7 +68,6 @@ impl KlockClient {
     pub fn new() -> Self {
         Self {
             store: Box::new(InMemoryLeaseStore::new()),
-            active_intents: Vec::new(),
             id_counter: 0,
         }
     }
@@ -73,7 +80,6 @@ impl KlockClient {
             .map_err(|e| format!("Failed to open SQLite database at '{}': {}", path, e))?;
         Ok(Self {
             store: Box::new(store),
-            active_intents: Vec::new(),
             id_counter: 0,
         })
     }
@@ -87,23 +93,20 @@ impl KlockClient {
 
     /// Declare an intent manifest and get a kernel verdict.
     /// This checks for conflicts and applies Wait-Die scheduling.
+    ///
+    /// Intents are advisory: a `Granted` verdict gates a future `acquire_lease`
+    /// but does not itself reserve anything. The kernel's "active intents" view
+    /// is derived from currently held leases.
     pub fn declare_intent(&mut self, manifest: &IntentManifest) -> KernelVerdict {
+        let active_leases = self.store.get_active_leases();
+        let active_intents: Vec<SPOTriple> = active_leases.iter().map(SPOTriple::from).collect();
         let snapshot = StateSnapshot {
-            active_leases: self.store.get_active_leases(),
-            active_intents: self.active_intents.clone(),
+            active_leases,
+            active_intents,
             priorities: self.store.get_priorities(),
         };
 
-        let verdict = KlockKernel::execute(&snapshot, manifest);
-
-        // If granted, register the intents as active
-        if verdict.status == KernelVerdictStatus::Granted {
-            for intent in &manifest.intents {
-                self.active_intents.push(intent.clone());
-            }
-        }
-
-        verdict
+        KlockKernel::execute(&snapshot, manifest)
     }
 
     /// Acquire a lease on a resource.
@@ -126,8 +129,6 @@ impl KlockClient {
 
     /// Release a held lease by its ID.
     pub fn release_lease(&mut self, lease_id: &str) -> bool {
-        // Also remove from active intents
-        self.active_intents.retain(|i| i.id != lease_id);
         self.store.release(lease_id)
     }
 
@@ -145,6 +146,13 @@ impl KlockClient {
     /// Heartbeat a lease to renew its TTL. Returns true if successful.
     pub fn heartbeat_lease(&mut self, lease_id: &str, now: u64) -> bool {
         self.store.heartbeat(lease_id, now)
+    }
+
+    /// True when the underlying storage has poisoned itself due to a
+    /// non-recoverable error. When poisoned, acquires fail with
+    /// `LeaseFailureReason::StorageUnavailable` and `/health` returns 503.
+    pub fn storage_poisoned(&self) -> bool {
+        self.store.is_poisoned()
     }
 
     /// Generate a unique ID for intents/triples.

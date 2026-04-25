@@ -18,14 +18,13 @@ use crate::handlers::*;
 
 pub type AppState = Arc<Mutex<KlockClient>>;
 
-pub async fn run(host: &str, port: u16, storage: &str) {
-    let client = create_client(storage);
-    let state: AppState = Arc::new(Mutex::new(client));
-
+/// Build the HTTP router with the supplied state. Pulled out of `run` so
+/// integration tests can drive the router directly via `tower::oneshot`.
+pub fn build_router(state: AppState) -> Router {
     // NOTE: Rate limiting should be handled at the infrastructure level
     // (nginx, envoy, cloud load balancer) for production deployments.
 
-    let app = Router::new()
+    Router::new()
         // Health is always open (no auth)
         .route("/health", get(health))
         // Protected routes
@@ -38,7 +37,13 @@ pub async fn run(host: &str, port: u16, storage: &str) {
         .route("/evict", post(evict_expired))
         .layer(middleware::from_fn(auth_middleware))
         .layer(CorsLayer::permissive())
-        .with_state(state);
+        .with_state(state)
+}
+
+pub async fn run(host: &str, port: u16, storage: &str) {
+    let client = create_client(storage);
+    let state: AppState = Arc::new(Mutex::new(client));
+    let app = build_router(state);
 
     let addr = format!("{}:{}", host, port);
 
@@ -81,9 +86,9 @@ async fn auth_middleware(
         .and_then(|v| v.to_str().ok())
         .unwrap_or("");
 
-    let token = auth_header.strip_prefix("Bearer ").unwrap_or("");
+    let token = strip_bearer_prefix(auth_header);
 
-    if token == expected_key {
+    if tokens_match(token, &expected_key) {
         Ok(next.run(request).await)
     } else {
         tracing::warn!("🚫 Unauthorized request to {}", request.uri().path());
@@ -91,15 +96,59 @@ async fn auth_middleware(
     }
 }
 
+/// Strip a case-insensitive `Bearer ` prefix from an Authorization header.
+/// Returns the empty string if the header doesn't start with the scheme.
+fn strip_bearer_prefix(header: &str) -> &str {
+    const SCHEME: &str = "bearer ";
+    if header.len() >= SCHEME.len()
+        && header[..SCHEME.len()].eq_ignore_ascii_case(SCHEME)
+    {
+        &header[SCHEME.len()..]
+    } else {
+        ""
+    }
+}
+
+/// Constant-time comparison for the bearer token.
+/// Equal-length check first (subtle requires equal-length slices); if the
+/// lengths differ we still iterate over the longer one to avoid leaking the
+/// length of the expected key via early-exit timing.
+fn tokens_match(received: &str, expected: &str) -> bool {
+    use subtle::ConstantTimeEq;
+    let r = received.as_bytes();
+    let e = expected.as_bytes();
+    if r.len() != e.len() {
+        // Compare against itself to keep the operation length-stable.
+        let _ = r.ct_eq(r);
+        return false;
+    }
+    r.ct_eq(e).into()
+}
+
 // ─── Handlers ───────────────────────────────────────────────────────────────
 
-async fn health(State(state): State<AppState>) -> Json<ApiResponse<HealthResponse>> {
+async fn health(
+    State(state): State<AppState>,
+) -> (StatusCode, Json<ApiResponse<HealthResponse>>) {
     let client = state.lock().await;
-    Json(ApiResponse::ok(HealthResponse {
-        status: "ok".to_string(),
-        active_leases: client.get_active_leases().len(),
-        version: env!("CARGO_PKG_VERSION").to_string(),
-    }))
+    if client.storage_poisoned() {
+        return (
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(ApiResponse::ok(HealthResponse {
+                status: "storage_unavailable".to_string(),
+                active_leases: 0,
+                version: env!("CARGO_PKG_VERSION").to_string(),
+            })),
+        );
+    }
+    (
+        StatusCode::OK,
+        Json(ApiResponse::ok(HealthResponse {
+            status: "ok".to_string(),
+            active_leases: client.get_active_leases().len(),
+            version: env!("CARGO_PKG_VERSION").to_string(),
+        })),
+    )
 }
 
 async fn register_agent(
@@ -111,6 +160,9 @@ async fn register_agent(
             StatusCode::BAD_REQUEST,
             Json(ApiResponse::err("agent_id is required")),
         );
+    }
+    if let Err(e) = validate_len("agent_id", &req.agent_id, MAX_AGENT_ID_LEN) {
+        return (StatusCode::BAD_REQUEST, Json(ApiResponse::err(e)));
     }
 
     let mut client = state.lock().await;
@@ -175,12 +227,15 @@ async fn acquire_lease(
         LeaseResult::Failure {
             reason, wait_time, ..
         } => {
-            let reason_str = match reason {
-                LeaseFailureReason::Wait => "WAIT",
-                LeaseFailureReason::Die => "DIE",
-                LeaseFailureReason::Conflict => "CONFLICT",
-                LeaseFailureReason::ResourceLocked => "RESOURCE_LOCKED",
-                LeaseFailureReason::SessionExpired => "SESSION_EXPIRED",
+            let (status, reason_str) = match reason {
+                LeaseFailureReason::Wait => (StatusCode::CONFLICT, "WAIT"),
+                LeaseFailureReason::Die => (StatusCode::CONFLICT, "DIE"),
+                LeaseFailureReason::Conflict => (StatusCode::CONFLICT, "CONFLICT"),
+                LeaseFailureReason::ResourceLocked => (StatusCode::CONFLICT, "RESOURCE_LOCKED"),
+                LeaseFailureReason::SessionExpired => (StatusCode::CONFLICT, "SESSION_EXPIRED"),
+                LeaseFailureReason::StorageUnavailable => {
+                    (StatusCode::SERVICE_UNAVAILABLE, "STORAGE_UNAVAILABLE")
+                }
             };
             tracing::info!(
                 agent_id = %req.agent_id,
@@ -188,7 +243,7 @@ async fn acquire_lease(
                 "Lease denied"
             );
             (
-                StatusCode::CONFLICT,
+                status,
                 Json(serde_json::json!({
                     "success": false,
                     "reason": reason_str,
@@ -335,7 +390,7 @@ async fn evict_expired(State(state): State<AppState>) -> Json<ApiResponse<EvictR
 
 // ─── Storage Backend Selection ──────────────────────────────────────────────
 
-fn create_client(storage: &str) -> KlockClient {
+pub fn create_client(storage: &str) -> KlockClient {
     if storage == "memory" {
         tracing::info!("💾 Storage backend: in-memory (leases will not persist)");
         KlockClient::new()

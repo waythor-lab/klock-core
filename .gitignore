@@ -1,6 +1,8 @@
 # Dependencies
 node_modules
 .pnpm-store
+# Library lockfile — generated per-install for downstream consumers
+klock-js/package-lock.json
 
 # Build outputs
 dist
