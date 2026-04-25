@@ -1,6 +1,7 @@
 """Type stubs for the klock-core native module (PyO3)."""
 
-from typing import Optional
+from types import TracebackType
+from typing import Optional, Type
 
 class KlockClient:
     """The Klock coordination client.
@@ -46,8 +47,9 @@ class KlockClient:
         Returns:
             On success: {"success": True, "lease_id": str, "agent_id": str, "resource": str, "expires_at": int}
             On failure: {"success": False, "reason": str, "wait_time": Optional[int]}
-            
-            Reason values: "DIE", "WAIT", "CONFLICT", "RESOURCE_LOCKED", "SESSION_EXPIRED"
+
+            Reason values: "DIE", "WAIT", "CONFLICT", "RESOURCE_LOCKED",
+            "SESSION_EXPIRED", "STORAGE_UNAVAILABLE".
         """
         ...
 
@@ -76,7 +78,22 @@ class KlockClient:
 
 
 class KlockHttpClient:
-    """HTTP client for a local or remote Klock coordination server."""
+    """HTTP client for a local or remote Klock coordination server.
+
+    When ``auto_start`` is True (default) and ``base_url`` is local, this
+    client spawns a ``klock serve`` subprocess if the server is unreachable.
+    The spawned process is owned by the client and terminated by
+    ``shutdown()``, the context-manager protocol, or garbage collection.
+
+    Recommended usage::
+
+        with KlockHttpClient() as klock:
+            klock.register_agent("a", 100)
+            ...
+
+    For long-lived clients without the ``with`` statement, call
+    ``shutdown()`` explicitly before exit; ``__del__`` is best-effort.
+    """
 
     def __init__(
         self,
@@ -99,6 +116,25 @@ class KlockHttpClient:
         ...
 
     def last_started_pid(self) -> Optional[int]:
+        ...
+
+    def shutdown(self) -> None:
+        """Terminate the auto-started server subprocess, if owned.
+
+        Safe to call multiple times. Servers that were already running
+        when this client was constructed are not touched.
+        """
+        ...
+
+    def __enter__(self) -> "KlockHttpClient":
+        ...
+
+    def __exit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> bool:
         ...
 
     def acquire_lease(

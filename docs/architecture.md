@@ -5,8 +5,8 @@ Klock's architecture follows a **pure kernel + infrastructure** separation where
 ## Design Principles
 
 1. **Pure Kernel**: The conflict engine, scheduler, and state machine have zero I/O — they are pure functions over data
-2. **O(1) Conflict Detection**: A precomputed 6×6 compatibility matrix makes conflict checks constant-time
-3. **Deadlock Freedom**: Wait-Die scheduling guarantees no circular waits can form
+2. **Constant-time pairwise compatibility**: A precomputed 6×6 predicate compatibility matrix means each held-vs-requested pair is decided in O(1). The full conflict scan is O(n) in the number of currently held leases (the matrix lookup is the inner loop).
+3. **Deadlock Freedom**: Wait-Die scheduling produces a strict ordering on agents — older waits, younger dies — so no circular waits can form. Equal priorities are tie-broken deterministically by `agent_id` to preserve antisymmetry.
 4. **Kernel-Centered Correctness**: Within the kernel, correctness is enforced rather than requested. In OSS v1, agents still need to call Klock before mutating shared resources.
 
 ---
@@ -163,6 +163,6 @@ ELSE:
 
 > **Safety (Intent Isolation)**: At any time, no two simultaneously granted leases contain conflicting intents on the same resource.
 
-> **Liveness (Deadlock Freedom)**: Waiting edges in the Wait-Die protocol only flow from older to younger agents, making cycles impossible.
+> **Liveness (Deadlock Freedom)**: Waiting edges in the Wait-Die protocol only flow from older to younger agents along a strict order on `(priority, agent_id)`. Cycles are impossible. Progress is bounded by the youngest agent eventually retrying after backoff or by lease expiry under TTL.
 
 > **Intent Serializability**: Completed executions admit a serial order consistent with the conflict-induced partial order.

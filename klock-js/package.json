@@ -1,6 +1,6 @@
 {
     "name": "@klock-protocol/core",
-    "version": "0.1.2",
+    "version": "0.1.3",
     "description": "Native Rust-powered coordination kernel for multi-agent systems. Prevents AI agent race conditions.",
     "main": "index.js",
     "exports": {
@@ -10,6 +10,9 @@
     "files": [
         "index.js",
         "index.d.ts",
+        "klock-http-client.js",
+        "klock-http-client.d.ts",
+        "scripts/append-types.mjs",
         "*.node"
     ],
     "publishConfig": {
@@ -22,15 +25,19 @@
         }
     },
     "scripts": {
-        "build": "napi build --platform --release",
-        "build:debug": "napi build --platform",
-        "test": "node __test__/index.test.mjs"
+        "build": "napi build --platform --release && node scripts/append-types.mjs",
+        "build:debug": "napi build --platform && node scripts/append-types.mjs",
+        "postbuild": "node scripts/append-types.mjs",
+        "test": "node --test __test__/index.test.mjs",
+        "test:types": "tsc --noEmit -p __test__/tsconfig.json"
     },
     "engines": {
         "node": ">=18"
     },
     "devDependencies": {
-        "@napi-rs/cli": "^2.18.0"
+        "@napi-rs/cli": "^2.18.0",
+        "@types/node": "^20.19.39",
+        "typescript": "^5.9.3"
     },
     "license": "MIT",
     "keywords": [

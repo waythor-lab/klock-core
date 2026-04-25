@@ -66,6 +66,7 @@ impl KlockClient {
                     LeaseFailureReason::Conflict => "CONFLICT",
                     LeaseFailureReason::ResourceLocked => "RESOURCE_LOCKED",
                     LeaseFailureReason::SessionExpired => "SESSION_EXPIRED",
+                    LeaseFailureReason::StorageUnavailable => "STORAGE_UNAVAILABLE",
                 };
                 serde_json::json!({
                     "success": false,

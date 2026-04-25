@@ -1,6 +1,6 @@
 [package]
 name = "klock-py"
-version = "0.1.2"
+version = "0.1.3"
 edition = "2021"
 description = "Python bindings for the Klock coordination kernel"
 license = "MIT"

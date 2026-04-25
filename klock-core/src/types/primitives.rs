@@ -77,9 +77,11 @@ pub struct ResourceRef {
 
 impl ResourceRef {
     pub fn new(resource_type: ResourceType, path: impl Into<String>) -> Self {
+        let raw: String = path.into();
+        let path = normalize_path(&resource_type, &raw);
         Self {
             resource_type,
-            path: path.into(),
+            path,
         }
     }
 
@@ -87,6 +89,50 @@ impl ResourceRef {
     pub fn key(&self) -> String {
         format!("{}:{}", self.resource_type, self.path)
     }
+}
+
+/// Normalize a resource path so that callers using slightly different
+/// spellings (extra slashes, trailing whitespace, trailing slash) hit the
+/// same lease entry. We deliberately do not lowercase: file systems on
+/// Linux and macOS treat case as significant. We deliberately do not
+/// resolve `..` since there is no base path to resolve against.
+fn normalize_path(resource_type: &ResourceType, raw: &str) -> String {
+    let trimmed = raw.trim();
+    match resource_type {
+        ResourceType::File => normalize_file_path(trimmed),
+        _ => trimmed.to_string(),
+    }
+}
+
+fn normalize_file_path(s: &str) -> String {
+    if s.is_empty() {
+        return String::new();
+    }
+    let starts_with_slash = s.starts_with('/');
+    // Collapse any run of slashes into one. Done with manual scanning to
+    // avoid pulling in a regex dep for a one-line transform.
+    let mut out = String::with_capacity(s.len());
+    let mut prev_slash = false;
+    for c in s.chars() {
+        if c == '/' {
+            if !prev_slash {
+                out.push('/');
+            }
+            prev_slash = true;
+        } else {
+            out.push(c);
+            prev_slash = false;
+        }
+    }
+    // Strip trailing slash, but preserve a sole `/` (root).
+    if out.len() > 1 && out.ends_with('/') {
+        out.pop();
+    }
+    // Edge case: input was something like `///` -> after collapse we have `/`,
+    // which is correct. If input was empty after trim and didn't start with
+    // a slash, leave as is.
+    let _ = starts_with_slash;
+    out
 }
 
 /// A Subject-Predicate-Object triple representing an agent's intent
