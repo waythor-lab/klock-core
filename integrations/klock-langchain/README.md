@@ -14,24 +14,23 @@ pip install klock klock-langchain langchain-core
 
 ## Local workflow
 
-For localhost workflows, `KlockHttpClient` now auto-starts the local server when it can find a launch command.
+For localhost workflows, use `Klock.local(...)`. It auto-starts the local coordinator on the first lock/register/acquire operation when it can find a launch command.
 
 When auto-start happens, the SDK logs the base URL, launch command, and PID.
 
 Disable auto-start with:
 
 - `KLOCK_DISABLE_AUTOSTART=1`
-- `KlockHttpClient(..., auto_start=False)`
+- `KlockHttpClient(..., auto_start=False)` if you use the advanced client directly
 
 Then wrap your tool:
 
 ```python
-from klock import KlockHttpClient
+from klock import Klock
 from klock_langchain import KlockConflictError, klock_protected
 from langchain_core.tools import BaseTool
 
-klock = KlockHttpClient(base_url="http://localhost:3100")
-klock.register_agent("agent-a", 100)
+klock = Klock.local(agent_id="agent-a", session_id="repo-session-a", priority=100)
 
 class WriteFileTool(BaseTool):
     name = "write_file"

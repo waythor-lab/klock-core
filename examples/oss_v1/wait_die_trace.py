@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from klock import KlockHttpClient
+from klock import Klock
 
 from common import TARGET_FILE
 
 
-CLIENT = KlockHttpClient()
+CLIENT = Klock.local(agent_id="agent_older", session_id="session-older", priority=100)
 RESOURCE_PATH = str(TARGET_FILE)
 
 

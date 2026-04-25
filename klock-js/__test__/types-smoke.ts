@@ -16,7 +16,10 @@ import type {
   KlockResourceType,
   KlockPredicate,
   KlockFailureReason,
+  KlockLocalOptions,
+  KlockFileMode,
 } from "../index.js";
+import { Klock } from "../index.js";
 
 // Unused-symbol references are kept compile-time only.
 declare const embedded: KlockClient;
@@ -29,6 +32,8 @@ declare const info: ActiveLeaseInfo;
 declare const rt: KlockResourceType;
 declare const pred: KlockPredicate;
 declare const reason: KlockFailureReason;
+declare const localOptions: KlockLocalOptions;
+declare const fileMode: KlockFileMode;
 
 // Spot-check method signatures for both clients.
 async function _smoke(): Promise<void> {
@@ -56,9 +61,19 @@ async function _smoke(): Promise<void> {
   const list: ActiveLeaseInfo[] = await http.listLeases();
   void ok; void beat; void list;
 
+  // Facade
+  const local = Klock.local({ agentId: "a", autoStart: false });
+  const embeddedFacade = Klock.embedded({ agentId: "a" });
+  await local.registerAgent("b", 2);
+  await local.withFile("/x", { mode: "mutate" }, async () => undefined);
+  await embeddedFacade.withFile("/x", () => undefined);
+  const facadeLease: AcquireLeaseResult = await local.acquireLease("a", "s", "FILE", "/x", "MUTATES", 1000);
+  const facadeRelease: boolean = await local.releaseLease("id");
+  void facadeLease; void facadeRelease;
+
   // Reference the declared values so unused-import lints don't fire.
   void opts; void result; void success; void failure;
-  void info; void rt; void pred; void reason;
+  void info; void rt; void pred; void reason; void localOptions; void fileMode;
 }
 
 void _smoke;

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert';
 import klockModule from '../index.js';
 
-const { KlockClient, KlockHttpClient } = klockModule;
+const { Klock, KlockClient, KlockHttpClient } = klockModule;
 
 test('klock-js smoke test', async (t) => {
     const client = new KlockClient();
@@ -131,6 +131,74 @@ test('klock-js smoke test', async (t) => {
             } else {
                 process.env.KLOCK_DISABLE_AUTOSTART = previous;
             }
+        }
+    });
+
+    await t.test('Klock.embedded should protect file callbacks and release on success', async () => {
+        const klock = Klock.embedded({ agentId: 'facade-agent', sessionId: 'facade-session', priority: 100 });
+        const result = await klock.withFile('/facade.ts', { mode: 'mutate' }, async () => 'done');
+        assert.strictEqual(result, 'done');
+
+        const second = await klock.withFile('/facade.ts', { mode: 'read' }, () => 'read-ok');
+        assert.strictEqual(second, 'read-ok');
+    });
+
+    await t.test('Klock.embedded should release on callback error', async () => {
+        const klock = Klock.embedded({ agentId: 'facade-error', sessionId: 'facade-error-session', priority: 100 });
+        await assert.rejects(
+            () => klock.withFile('/error.ts', { mode: 'mutate' }, () => {
+                throw new Error('boom');
+            }),
+            /boom/
+        );
+
+        const result = await klock.withFile('/error.ts', { mode: 'read' }, () => 'released');
+        assert.strictEqual(result, 'released');
+    });
+
+    await t.test('Klock.local should delegate to the HTTP client facade', async () => {
+        const originalFetch = global.fetch;
+        const seen = [];
+        const payloads = [
+            { success: true, data: 'registered' },
+            {
+                success: true,
+                data: {
+                    lease_id: 'lease-local-1',
+                    agent_id: 'local-agent',
+                    resource: 'FILE:/local.ts',
+                    predicate: 'MUTATES',
+                    expires_at: 1234,
+                },
+            },
+            { success: true },
+        ];
+
+        global.fetch = async (_url, options = {}) => {
+            if (options.body) {
+                seen.push(JSON.parse(options.body));
+            }
+            return {
+                ok: true,
+                text: async () => JSON.stringify(payloads.shift()),
+            };
+        };
+
+        try {
+            const klock = Klock.local({
+                agentId: 'local-agent',
+                sessionId: 'local-session',
+                priority: 100,
+                baseUrl: 'https://klock.example.test',
+                autoStart: false,
+            });
+            const result = await klock.withFile('/local.ts', { mode: 'mutate' }, () => 'ok');
+            assert.strictEqual(result, 'ok');
+            assert.strictEqual(seen[0].agent_id, 'local-agent');
+            assert.strictEqual(seen[1].predicate, 'MUTATES');
+            assert.strictEqual(seen[1].resource_path, '/local.ts');
+        } finally {
+            global.fetch = originalFetch;
         }
     });
 });

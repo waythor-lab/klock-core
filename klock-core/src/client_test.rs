@@ -30,13 +30,7 @@ mod tests {
         let manifest = IntentManifest {
             session_id: "s1".to_string(),
             agent_id: "a".to_string(),
-            intents: vec![triple(
-                "i1",
-                "a",
-                "s1",
-                Predicate::Mutates,
-                "/src/auth.ts",
-            )],
+            intents: vec![triple("i1", "a", "s1", Predicate::Mutates, "/src/auth.ts")],
         };
 
         let v1 = client.declare_intent(&manifest);
@@ -72,13 +66,7 @@ mod tests {
         let manifest_b = IntentManifest {
             session_id: "sb".to_string(),
             agent_id: "b".to_string(),
-            intents: vec![triple(
-                "ib",
-                "b",
-                "sb",
-                Predicate::Mutates,
-                "/src/x.ts",
-            )],
+            intents: vec![triple("ib", "b", "sb", Predicate::Mutates, "/src/x.ts")],
         };
         let v_blocked = client.declare_intent(&manifest_b);
         assert_ne!(

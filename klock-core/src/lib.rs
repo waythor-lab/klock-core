@@ -22,12 +22,12 @@ mod client_test;
 mod concurrency_test;
 #[cfg(test)]
 mod conflict_test;
-#[cfg(test)]
-#[path = "infrastructure_test.rs"]
-mod infrastructure_test;
 #[cfg(all(test, feature = "sqlite"))]
 #[path = "infrastructure_sqlite_test.rs"]
 mod infrastructure_sqlite_test;
+#[cfg(test)]
+#[path = "infrastructure_test.rs"]
+mod infrastructure_test;
 #[cfg(test)]
 mod scheduler_test;
 #[cfg(test)]

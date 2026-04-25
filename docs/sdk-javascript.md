@@ -1,68 +1,49 @@
 # JavaScript SDK
 
-The JavaScript SDK now exposes two entrypoints.
+The default JavaScript surface is `Klock`, a facade that hides the local coordinator unless you need advanced control.
 
-## `KlockClient`
+## `Klock.local`
 
-Use this for embedded coordination inside one Node process.
-
-```javascript
-const { KlockClient } = require('@klock-protocol/core');
-
-const klock = new KlockClient();
-klock.registerAgent('agent-a', 100);
-const result = JSON.parse(
-  klock.acquireLease('agent-a', 'session-a', 'FILE', '/src/auth.js', 'MUTATES', 5000),
-);
-```
-
-## `KlockHttpClient`
-
-Use this for the local-server OSS v1 workflow.
+Use this for normal OSS v1 repo coordination. It uses the local coordinator under the hood, so separate agents and processes share the same lease view.
 
 ```javascript
-const { KlockHttpClient } = require('@klock-protocol/core');
+const { Klock } = require('@klock-protocol/core');
 
-const klock = new KlockHttpClient({ baseUrl: 'http://localhost:3100' });
-await klock.registerAgent('agent-a', 100);
-const result = await klock.acquireLease(
-  'agent-a',
-  'session-a',
-  'FILE',
-  '/src/auth.js',
-  'MUTATES',
-  5000,
-);
+const klock = Klock.local({ agentId: 'agent-a' });
+
+await klock.withFile('/src/auth.js', { mode: 'mutate' }, async () => {
+  // read or write the file safely
+});
 ```
 
-When the client targets `localhost`, it auto-starts the local server by default using:
+Supported file modes:
 
-1. `KLOCK_SERVER_COMMAND`
-2. installed `klock` binary
-3. source-tree `cargo run --release -p klock-cli -- serve`
+- `read`
+- `mutate`
+- `delete`
+- `rename`
+- `provide`
+- `depend`
 
-When auto-start happens, the SDK logs:
+## `Klock.embedded`
 
-- the base URL
-- the launch command
-- the PID of the spawned server
+Use this for tests and single-process demos. It does not coordinate with other processes.
 
-Disable auto-start with either:
+```javascript
+const { Klock } = require('@klock-protocol/core');
 
-- `KLOCK_DISABLE_AUTOSTART=1`
-- `new KlockHttpClient({ autoStart: false })`
+const klock = Klock.embedded({ agentId: 'test-agent' });
+```
 
-### Available methods
+## Advanced Clients
 
-- `registerAgent(agentId, priority)`
-- `acquireLease(agentId, sessionId, resourceType, resourcePath, predicate, ttl)`
-- `releaseLease(leaseId)`
-- `heartbeatLease(leaseId)`
-- `listLeases()`
+`KlockClient` is the embedded low-level client. `KlockHttpClient` is the HTTP-backed low-level client.
 
-Useful runtime fields:
+```javascript
+const { KlockClient, KlockHttpClient } = require('@klock-protocol/core');
 
-- `autoStart`
-- `autoStartDisabledByEnv`
-- `autoStartAttempted`
-- `autoStartedPid`
+const embedded = new KlockClient();
+const remote = new KlockHttpClient({ baseUrl: 'http://localhost:3100' });
+```
+
+`KlockHttpClient` auto-starts the local server for localhost workflows. Disable auto-start with `KLOCK_DISABLE_AUTOSTART=1` or `new KlockHttpClient({ autoStart: false })`.

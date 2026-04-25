@@ -2,35 +2,21 @@
 
 Python SDK for Klock OSS v1.
 
-The package now exposes two entrypoints:
-
-- `KlockClient` for embedded local coordination
-- `KlockHttpClient` for talking to `klock-cli serve`
-
-## Install
-
-```bash
-pip install klock
-```
-
-## Embedded client
+Use the high-level facade first:
 
 ```python
-from klock import KlockClient
+from klock import Klock
 
-klock = KlockClient()
-klock.register_agent("agent-a", 100)
-result = klock.acquire_lease("agent-a", "session-a", "FILE", "/src/auth.js", "MUTATES", 5000)
+klock = Klock.local(agent_id="agent-a")
+
+with klock.file("/src/auth.js", mode="mutate"):
+    # read/write safely
+    ...
 ```
 
-## HTTP client
+`Klock.local(...)` coordinates through the local Klock server under the hood and auto-starts it on the first lock operation for localhost workflows. Use `Klock.embedded(...)` only when all coordinated work happens inside one process.
 
-```python
-from klock import KlockHttpClient
+Advanced clients are still available:
 
-klock = KlockHttpClient("http://localhost:3100")
-klock.register_agent("agent-a", 100)
-result = klock.acquire_lease("agent-a", "session-a", "FILE", "/src/auth.js", "MUTATES", 5000)
-```
-
-Use `KlockHttpClient` for the OSS v1 local repo/workspace coordination workflow.
+- `KlockClient` for embedded low-level coordination
+- `KlockHttpClient` for direct HTTP coordinator access

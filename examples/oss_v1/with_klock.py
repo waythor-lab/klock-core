@@ -3,13 +3,13 @@ from __future__ import annotations
 import threading
 import time
 
-from klock import KlockHttpClient
+from klock import Klock
 from klock_langchain import KlockConflictError, klock_protected
 
 from common import FEATURES, TARGET_FILE, build_update, feature_count, load_workspace, reset_workspace
 
 
-CLIENT = KlockHttpClient()
+CLIENT = Klock.local(agent_id="agent_older", session_id="session-older", priority=100)
 RESOURCE_PATH = str(TARGET_FILE)
 
 

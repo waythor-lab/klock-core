@@ -1,7 +1,84 @@
 """Type stubs for the klock-core native module (PyO3)."""
 
 from types import TracebackType
-from typing import Optional, Type
+from typing import Literal, Optional, Type
+
+KlockFileMode = Literal["read", "mutate", "delete", "rename", "provide", "depend"]
+
+class KlockFileGuard:
+    """Context manager returned by ``Klock.file(...)``."""
+
+    def __enter__(self) -> "KlockFileGuard":
+        ...
+
+    def __exit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> bool:
+        ...
+
+    def release(self) -> bool:
+        ...
+
+
+class Klock:
+    """Simple facade for protecting local file operations.
+
+    ``Klock.local(...)`` is the default user-facing path and uses the local
+    HTTP coordinator with auto-start for cross-process coordination.
+    ``Klock.embedded(...)`` is server-free but only coordinates inside one
+    process.
+    """
+
+    @staticmethod
+    def local(
+        agent_id: Optional[str] = None,
+        session_id: Optional[str] = None,
+        priority: Optional[int] = None,
+        base_url: str = "http://localhost:3100",
+        api_key: Optional[str] = None,
+        timeout_ms: int = 5000,
+        auto_start: bool = True,
+        startup_timeout_ms: int = 5000,
+        server_command: Optional[list[str]] = None,
+    ) -> "Klock":
+        ...
+
+    @staticmethod
+    def embedded(
+        agent_id: Optional[str] = None,
+        session_id: Optional[str] = None,
+        priority: Optional[int] = None,
+    ) -> "Klock":
+        ...
+
+    def file(
+        self,
+        path: str,
+        mode: KlockFileMode = "mutate",
+        ttl_ms: int = 60000,
+        max_retries: int = 10,
+    ) -> KlockFileGuard:
+        ...
+
+    def register_agent(self, agent_id: str, priority: int) -> None:
+        ...
+
+    def acquire_lease(
+        self,
+        agent_id: str,
+        session_id: str,
+        resource_type: str,
+        resource_path: str,
+        predicate: str,
+        ttl: int,
+    ) -> dict[str, object]:
+        ...
+
+    def release_lease(self, lease_id: str) -> bool:
+        ...
 
 class KlockClient:
     """The Klock coordination client.

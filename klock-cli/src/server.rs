@@ -100,9 +100,7 @@ async fn auth_middleware(
 /// Returns the empty string if the header doesn't start with the scheme.
 fn strip_bearer_prefix(header: &str) -> &str {
     const SCHEME: &str = "bearer ";
-    if header.len() >= SCHEME.len()
-        && header[..SCHEME.len()].eq_ignore_ascii_case(SCHEME)
-    {
+    if header.len() >= SCHEME.len() && header[..SCHEME.len()].eq_ignore_ascii_case(SCHEME) {
         &header[SCHEME.len()..]
     } else {
         ""
@@ -127,9 +125,7 @@ fn tokens_match(received: &str, expected: &str) -> bool {
 
 // ─── Handlers ───────────────────────────────────────────────────────────────
 
-async fn health(
-    State(state): State<AppState>,
-) -> (StatusCode, Json<ApiResponse<HealthResponse>>) {
+async fn health(State(state): State<AppState>) -> (StatusCode, Json<ApiResponse<HealthResponse>>) {
     let client = state.lock().await;
     if client.storage_poisoned() {
         return (

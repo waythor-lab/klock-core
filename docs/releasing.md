@@ -40,8 +40,8 @@ For package-by-package publish instructions, see:
 Create a release tag:
 
 ```bash
-git tag v0.1.2
-git push origin v0.1.2
+git tag v0.1.3
+git push origin v0.1.3
 ```
 
 That triggers:

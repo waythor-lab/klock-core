@@ -43,11 +43,7 @@ fn fresh_state() -> AppState {
 }
 
 async fn read_json(body: Body) -> Value {
-    let bytes = body
-        .collect()
-        .await
-        .expect("read body")
-        .to_bytes();
+    let bytes = body.collect().await.expect("read body").to_bytes();
     serde_json::from_slice(&bytes).expect("parse body as JSON")
 }
 
@@ -56,7 +52,12 @@ async fn health_returns_200_when_store_is_healthy() {
     let _g = no_auth_env();
     let app = build_router(fresh_state());
     let response = app
-        .oneshot(Request::builder().uri("/health").body(Body::empty()).unwrap())
+        .oneshot(
+            Request::builder()
+                .uri("/health")
+                .body(Body::empty())
+                .unwrap(),
+        )
         .await
         .expect("call");
 
@@ -263,10 +264,10 @@ async fn payload_caps_reject_oversized_agent_id() {
 // ─── Auth tests ──────────────────────────────────────────────────────────────
 
 async fn call(app: axum::Router, header: Option<&str>) -> StatusCode {
-    let mut req = Request::builder().method("POST").uri("/agents").header(
-        "content-type",
-        "application/json",
-    );
+    let mut req = Request::builder()
+        .method("POST")
+        .uri("/agents")
+        .header("content-type", "application/json");
     if let Some(h) = header {
         req = req.header("authorization", h);
     }
