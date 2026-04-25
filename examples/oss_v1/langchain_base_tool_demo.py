@@ -4,7 +4,7 @@ import threading
 import time
 from typing import Any
 
-from klock import KlockHttpClient
+from klock import Klock
 from klock_langchain import KlockConflictError, klock_protected
 from langchain_core.tools import BaseTool
 from pydantic import BaseModel, ConfigDict, Field
@@ -56,7 +56,7 @@ class ProtectedWriteTool(BaseTool):
 
 
 def ensure_server() -> None:
-    client = KlockHttpClient()
+    client = Klock.local(agent_id="langchain_older", session_id="langchain-session-older", priority=100)
     try:
         client.register_agent("langchain_older", 100)
         client.register_agent("langchain_younger", 200)
@@ -67,7 +67,7 @@ def ensure_server() -> None:
         raise SystemExit(1) from exc
 
 
-def run_tool(agent_id: str, session_id: str, marker: str, code: str, start_delay: float = 0.0) -> None:
+def run_tool(agent_id: str, session_id: str, priority: int, marker: str, code: str, start_delay: float = 0.0) -> None:
     if start_delay:
         time.sleep(start_delay)
 
@@ -76,7 +76,7 @@ def run_tool(agent_id: str, session_id: str, marker: str, code: str, start_delay
         session_id=session_id,
         feature_marker=marker,
         feature_code=code,
-        klock_client=KlockHttpClient(),
+        klock_client=Klock.local(agent_id=agent_id, session_id=session_id, priority=priority),
     )
 
     attempts = 0
@@ -105,11 +105,11 @@ def main() -> None:
 
     older = threading.Thread(
         target=run_tool,
-        args=("langchain_older", "langchain-session-older", older_marker, older_code, 0.0),
+        args=("langchain_older", "langchain-session-older", 100, older_marker, older_code, 0.0),
     )
     younger = threading.Thread(
         target=run_tool,
-        args=("langchain_younger", "langchain-session-younger", younger_marker, younger_code, 0.05),
+        args=("langchain_younger", "langchain-session-younger", 200, younger_marker, younger_code, 0.05),
     )
 
     older.start()

@@ -62,15 +62,28 @@ One-command version:
 ./scripts/run_oss_v1_demo.sh
 ```
 
+## Simple local file guard
+
+```python
+from klock import Klock
+
+klock = Klock.local(agent_id="refactor-bot")
+
+with klock.file("src/auth.ts", mode="mutate"):
+    with open("src/auth.ts", "w", encoding="utf-8") as handle:
+        handle.write("// updated safely\n")
+```
+
+`Klock.local(...)` auto-starts or connects to the local coordinator on the first lock operation, so separate agents and processes share one lease view without making construction fragile. Use `Klock.embedded(...)` only for single-process tests and demos.
+
 ## Canonical LangChain example
 
 ```python
-from klock import KlockHttpClient
+from klock import Klock
 from klock_langchain import klock_protected
 from langchain_core.tools import BaseTool
 
-klock = KlockHttpClient(base_url="http://localhost:3100")
-klock.register_agent("refactor-bot", 100)
+klock = Klock.local(agent_id="refactor-bot", session_id="repo-run-001", priority=100)
 
 class WriteFileTool(BaseTool):
     name = "write_file"
@@ -106,8 +119,9 @@ pip install klock
 ```
 
 ```python
-from klock import KlockClient, KlockHttpClient
+from klock import Klock, KlockClient, KlockHttpClient
 
+default = Klock.local(agent_id="agent-a")
 embedded = KlockClient()
 remote = KlockHttpClient("http://localhost:3100")
 ```
@@ -119,15 +133,16 @@ npm install @klock-protocol/core
 ```
 
 ```javascript
-const { KlockClient, KlockHttpClient } = require('@klock-protocol/core');
+const { Klock, KlockClient, KlockHttpClient } = require('@klock-protocol/core');
 
+const defaultClient = Klock.local({ agentId: 'agent-a' });
 const embedded = new KlockClient();
 const remote = new KlockHttpClient({ baseUrl: 'http://localhost:3100' });
 ```
 
 ## Local repo workflow
 
-1. Let `KlockHttpClient` auto-start `klock-cli serve`, or start it manually.
+1. Use `Klock.local(...)`; it auto-starts or connects to the local coordinator on first use.
 2. Register each agent with an explicit priority.
 3. Wrap every file-mutating tool with `klock_protected(...)` or call the SDK directly.
 4. Acquire a lease before reading and writing the target file.

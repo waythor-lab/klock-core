@@ -12,6 +12,8 @@
         "index.d.ts",
         "klock-http-client.js",
         "klock-http-client.d.ts",
+        "klock-facade.js",
+        "klock-facade.d.ts",
         "scripts/append-types.mjs",
         "*.node"
     ],

@@ -315,6 +315,7 @@ const { KlockClient } = nativeBinding
 module.exports.KlockClient = KlockClient
 
 // === klock-http-client.js (appended by postbuild) ===
-// Pull the JS-only HTTP client into this module's exports so users
-// can `const { KlockHttpClient } = require('@klock-protocol/core')`.
+// Pull the JS-only HTTP client and facade into this module's exports so users
+// can `const { Klock, KlockHttpClient } = require('@klock-protocol/core')`.
 module.exports.KlockHttpClient = require('./klock-http-client').KlockHttpClient
+module.exports.Klock = require('./klock-facade').createKlockFacade(KlockClient)

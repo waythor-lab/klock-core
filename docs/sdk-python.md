@@ -1,64 +1,64 @@
 # Python SDK
 
-The Python SDK ships two client surfaces.
+The default Python surface is `Klock`, a small facade for protecting local file operations.
 
-## `KlockClient`
+## `Klock.local`
 
-Use this for embedded, in-process coordination.
-
-```python
-from klock import KlockClient
-
-klock = KlockClient()
-klock.register_agent("agent-a", 100)
-result = klock.acquire_lease("agent-a", "session-a", "FILE", "/src/auth.js", "MUTATES", 5000)
-```
-
-## `KlockHttpClient`
-
-Use this for the OSS v1 local-server workflow.
+Use this for normal OSS v1 repo coordination. It uses the local coordinator under the hood, so separate agents and processes share the same lease view.
 
 ```python
-from klock import KlockHttpClient
+from klock import Klock
 
-klock = KlockHttpClient("http://localhost:3100")
-klock.register_agent("agent-a", 100)
-result = klock.acquire_lease("agent-a", "session-a", "FILE", "/src/auth.js", "MUTATES", 5000)
+klock = Klock.local(agent_id="agent-a")
+
+with klock.file("/src/auth.js", mode="mutate"):
+    # read or write the file safely
+    ...
 ```
 
-When the client targets `localhost`, it auto-starts the local server by default using:
+Supported file modes:
+
+- `read`
+- `mutate`
+- `delete`
+- `rename`
+- `provide`
+- `depend`
+
+`Klock.local(...)` auto-starts the local server on the first lock/register/acquire operation for localhost workflows using:
 
 1. `KLOCK_SERVER_COMMAND`
 2. installed `klock` binary
 3. source-tree `cargo run --release -p klock-cli -- serve`
 
-When auto-start happens, the SDK logs:
+Disable auto-start with `KLOCK_DISABLE_AUTOSTART=1` or by using the advanced `KlockHttpClient(..., auto_start=False)`.
 
-- the base URL
-- the launch command
-- the PID of the spawned server
+## `Klock.embedded`
 
-Disable auto-start with either:
-
-- `KLOCK_DISABLE_AUTOSTART=1`
-- `KlockHttpClient(..., auto_start=False)`
-
-### Available methods
-
-- `register_agent(agent_id, priority)`
-- `acquire_lease(agent_id, session_id, resource_type, resource_path, predicate, ttl)`
-- `release_lease(lease_id)`
-- `heartbeat_lease(lease_id)`
-- `list_leases()`
-- `auto_start_enabled()`
-- `auto_start_disabled_by_env()`
-- `last_started_pid()`
-
-## Recommended pairing
-
-For LangChain, pair `KlockHttpClient` with `klock-langchain`:
+Use this for tests, notebooks, and single-process demos. It does not coordinate with other processes.
 
 ```python
-from klock import KlockHttpClient
+from klock import Klock
+
+klock = Klock.embedded(agent_id="test-agent")
+```
+
+## Advanced Clients
+
+`KlockClient` is the embedded low-level client. `KlockHttpClient` is the HTTP-backed low-level client.
+
+```python
+from klock import KlockClient, KlockHttpClient
+
+embedded = KlockClient()
+remote = KlockHttpClient("http://localhost:3100")
+```
+
+For LangChain, pass the facade directly:
+
+```python
+from klock import Klock
 from klock_langchain import klock_protected
+
+klock = Klock.local(agent_id="agent-a")
 ```

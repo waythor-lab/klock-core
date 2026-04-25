@@ -13,15 +13,16 @@ Supported through `klock-langchain`.
 This is the canonical OSS v1 path:
 
 - local Klock server
-- `KlockHttpClient`
+- `Klock.local(...)`
 - `klock_protected(...)` on file tools
 
 ### Custom Python agents
 
 Supported through:
 
+- `Klock.local(...)` for the default local repo workflow
 - `KlockClient` for embedded coordination
-- `KlockHttpClient` for local-server coordination
+- `KlockHttpClient` for advanced local-server coordination
 
 If your agent can call Python functions before it reads and writes a repo file, it can use Klock today.
 
@@ -29,8 +30,9 @@ If your agent can call Python functions before it reads and writes a repo file, 
 
 Supported through:
 
+- `Klock.local(...)`
 - `KlockClient`
-- `KlockHttpClient`
+- `KlockHttpClient` for advanced local-server coordination
 
 If your agent runtime can call the JS SDK before mutating a file, it can use Klock today.
 

@@ -5,7 +5,7 @@ Klock OSS v1 is a **local multi-agent repo coordination** workflow for cooperati
 This guide takes you from zero to a working proof:
 
 1. reproduce the overwrite without Klock
-2. let Klock auto-start the local server for localhost workflows
+2. use `Klock.local(...)` to protect a file operation
 3. run the coordinated version
 4. inspect `GRANT`, `WAIT`, and `DIE` behavior
 
@@ -42,9 +42,20 @@ Expected outcome:
 - only one feature block survives in `workspace/src/auth.js`
 - the script ends with `SILENT OVERWRITE DETECTED`
 
-## 3. Let localhost auto-start work by default
+## 3. Use the simple local facade
 
-For local workflows, `KlockHttpClient("http://localhost:3100")` now tries to start `klock serve` automatically.
+For local workflows, start with `Klock.local(...)` and a file guard:
+
+```python
+from klock import Klock
+
+klock = Klock.local(agent_id="agent-a")
+
+with klock.file("workspace/src/auth.js", mode="mutate"):
+    ...
+```
+
+Under the hood, `Klock.local(...)` starts or connects to the local coordinator on the first lock operation so independent processes coordinate correctly.
 
 It uses this order:
 
@@ -57,7 +68,7 @@ When auto-start happens, the SDK logs the base URL and PID so the process is vis
 Disable auto-start with either:
 
 - `KLOCK_DISABLE_AUTOSTART=1`
-- `KlockHttpClient(..., auto_start=False)`
+- `KlockHttpClient(..., auto_start=False)` if you use the advanced client directly
 
 You can still start the server manually if you want, but it is no longer the default recommendation.
 
@@ -107,12 +118,11 @@ Expected outcome:
 ## 7. Adopt the LangChain path
 
 ```python
-from klock import KlockHttpClient
+from klock import Klock
 from klock_langchain import klock_protected
 from langchain_core.tools import BaseTool
 
-klock = KlockHttpClient(base_url="http://localhost:3100")
-klock.register_agent("refactor-bot", 100)
+klock = Klock.local(agent_id="refactor-bot", session_id="repo-run-001", priority=100)
 
 class WriteFileTool(BaseTool):
     name = "write_file"

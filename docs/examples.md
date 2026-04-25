@@ -27,7 +27,7 @@ python3 with_klock.py
 This uses:
 
 - the local `klock-cli` server
-- the Python `KlockHttpClient`
+- the Python `Klock.local(...)` facade
 - the `klock-langchain` decorator surface
 
 The final workspace file preserves both edits because both agents cooperate with the Klock lease flow.
@@ -48,36 +48,25 @@ This is the smallest direct protocol walkthrough that shows:
 
 ## SDK snippets
 
-### Python HTTP client
+### Python file guard
 
 ```python
-from klock import KlockHttpClient
+from klock import Klock
 
-klock = KlockHttpClient("http://localhost:3100")
-klock.register_agent("agent-a", 100)
-result = klock.acquire_lease(
-    "agent-a",
-    "session-a",
-    "FILE",
-    "/repo/src/auth.js",
-    "MUTATES",
-    5_000,
-)
+klock = Klock.local(agent_id="agent-a")
+
+with klock.file("/repo/src/auth.js", mode="mutate"):
+    ...
 ```
 
-### JavaScript HTTP client
+### JavaScript file guard
 
 ```javascript
-const { KlockHttpClient } = require('@klock-protocol/core');
+const { Klock } = require('@klock-protocol/core');
 
-const klock = new KlockHttpClient({ baseUrl: 'http://localhost:3100' });
-await klock.registerAgent('agent-a', 100);
-const result = await klock.acquireLease(
-  'agent-a',
-  'session-a',
-  'FILE',
-  '/repo/src/auth.js',
-  'MUTATES',
-  5000,
-);
+const klock = Klock.local({ agentId: 'agent-a' });
+
+await klock.withFile('/repo/src/auth.js', { mode: 'mutate' }, async () => {
+  // read/write safely
+});
 ```

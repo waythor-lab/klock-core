@@ -12,6 +12,9 @@ echo "==> Installing local Klock packages"
 CARGO_TARGET_DIR="${KLOCK_CARGO_TARGET_DIR:-/tmp/klock-target-oss-v1}" \
   "${VENV_DIR}/bin/python" -m pip install -e "${ROOT_DIR}/klock-py" -e "${ROOT_DIR}/integrations/klock-langchain"
 
+echo "==> Running Python SDK facade tests"
+"${VENV_DIR}/bin/python" -m unittest discover -s "${ROOT_DIR}/klock-py/tests"
+
 echo "==> Running unprotected repro"
 "${VENV_DIR}/bin/python" "${ROOT_DIR}/examples/oss_v1/without_klock.py"
 

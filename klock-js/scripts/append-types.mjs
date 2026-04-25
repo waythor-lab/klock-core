@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /*
- * Postbuild step: stitches the hand-maintained KlockHttpClient onto NAPI-RS's
+ * Postbuild step: stitches the hand-maintained JS facade and KlockHttpClient onto NAPI-RS's
  * auto-generated `index.js` and `index.d.ts`. Without this, `napi build`
  * regenerates both files from the Rust source and erases the JS-only
  * HTTP client, breaking `import { KlockHttpClient } from '@klock-protocol/core'`.
@@ -18,9 +18,11 @@ const indexJs = path.join(root, 'index.js')
 const indexDts = path.join(root, 'index.d.ts')
 const httpJs = path.join(root, 'klock-http-client.js')
 const httpDts = path.join(root, 'klock-http-client.d.ts')
+const facadeDts = path.join(root, 'klock-facade.d.ts')
 
 const jsMarker = '// === klock-http-client.js (appended by postbuild) ==='
 const dtsMarker = '// === klock-http-client.d.ts (appended by postbuild) ==='
+const facadeDtsMarker = '// === klock-facade.d.ts (appended by postbuild) ==='
 
 function appendIfMissing(target, source, marker, header) {
   const current = fs.readFileSync(target, 'utf8')
@@ -39,9 +41,10 @@ function appendIfMissing(target, source, marker, header) {
 // the file from disk: it's published in the package, runs at module load,
 // and pulls KlockHttpClient into the same module.exports object.
 const jsBridge =
-  "// Pull the JS-only HTTP client into this module's exports so users\n" +
-  "// can `const { KlockHttpClient } = require('@klock-protocol/core')`.\n" +
-  "module.exports.KlockHttpClient = require('./klock-http-client').KlockHttpClient\n"
+  "// Pull the JS-only HTTP client and facade into this module's exports so users\n" +
+  "// can `const { Klock, KlockHttpClient } = require('@klock-protocol/core')`.\n" +
+  "module.exports.KlockHttpClient = require('./klock-http-client').KlockHttpClient\n" +
+  "module.exports.Klock = require('./klock-facade').createKlockFacade(KlockClient)\n"
 
 const currentJs = fs.readFileSync(indexJs, 'utf8')
 if (!currentJs.includes(jsMarker)) {
@@ -52,4 +55,8 @@ if (!currentJs.includes(jsMarker)) {
 
 if (appendIfMissing(indexDts, httpDts, dtsMarker, '')) {
   console.log('Appended klock-http-client.d.ts onto index.d.ts')
+}
+
+if (appendIfMissing(indexDts, facadeDts, facadeDtsMarker, '')) {
+  console.log('Appended klock-facade.d.ts onto index.d.ts')
 }
