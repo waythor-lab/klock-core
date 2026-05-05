@@ -20,9 +20,11 @@ printf "2. with Klock: conflicting writes become GRANT / WAIT / DIE before mutat
 
 section "SETUP"
 printf "Virtualenv: %s\n" "${VENV_DIR}"
-python3 -m venv "${VENV_DIR}"
+python3 -m venv --clear "${VENV_DIR}"
+"${VENV_DIR}/bin/python" -m ensurepip --upgrade >/dev/null
 
 printf "Installing local Klock packages...\n"
+PIP_DISABLE_PIP_VERSION_CHECK=1 \
 CARGO_TARGET_DIR="${CARGO_TARGET_DIR}" \
   "${VENV_DIR}/bin/python" -m pip install -q -e "${ROOT_DIR}/klock-py" -e "${ROOT_DIR}/integrations/klock-langchain"
 

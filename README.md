@@ -10,6 +10,8 @@ Coordinate AI coding agents before they overwrite each other in the same repo.
 
 [Getting Started](docs/getting-started.md) · [LangChain](integrations/klock-langchain/README.md) · [Examples](docs/examples.md) · [Benchmarks](docs/benchmarks.md)
 
+[Public GitHub](https://github.com/waythor-lab/klock-core) · [Website](https://klockcore.com) · [npm](https://www.npmjs.com/package/@klock-protocol/core)
+
 </div>
 
 ## What ships in OSS v1
